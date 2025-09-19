@@ -98,11 +98,39 @@ npm install
 Start React Native Metro bundler:
 ```bash
 npx react-native start
-```
+```  
 
 Run app on Android emulator:
 ```bash
 npx react-native run-android
 ```
 
-⚠️ Note: For local testing on Android Emulator, use http://10.0.2.2:5000 instead of http://localhost:5000 when calling backend APIs.
+⚠️ Note: For local testing on Android Emulator, use http://10.0.2.2:5000 instead of http://localhost:5000 when calling backend APIs.  
+
+## Demo Screenshots  
+
+### Auth  
+<p float="left">
+  <img src="./assets/Login.png" alt="Login" width="250"/>
+  <img src="./assets/Signup.png" alt="Signup" width="250"/>
+</p>
+
+### Home & Updates  
+<p float="left">
+  <img src="./assets/Home.png" alt="Home" width="250"/>
+  <img src="./assets/Updates.png" alt="Updates" width="250"/>
+</p>
+
+### Goods & Services  
+<p float="left">
+  <img src="./assets/GoodsList.png" alt="Goods List" width="250"/>
+  <img src="./assets/ServicesList.png" alt="Services List" width="250"/>
+</p>
+
+### Posting  
+<p float="left">
+  <img src="./assets/PostGoods.png" alt="Post Goods" width="250"/>
+  <img src="./assets/PostService.png" alt="Post Service" width="250"/>
+</p>
+
+
