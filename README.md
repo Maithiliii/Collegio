@@ -1,7 +1,7 @@
 # Collegio🎓
 
-Collegio is a **mobile-first platform for engineering students** to buy, sell, and request services within their campus.  
-It makes it easy to exchange goods like textbooks, calculators, or lab kits, and also connect for services such as tutoring, homework help, or printing.  
+Collegio is a **mobile-first platform for students** to buy, sell, and request services within their campus.  
+It makes it easy to exchange goods like textbooks, calculators or lab kits and also connect for services such as tutoring, homework help etc.  
 
 The project is built as a **full-stack mobile app**, with a React Native frontend and a Node.js + Express backend, connected through RESTful APIs and real-time features.
 
@@ -13,14 +13,15 @@ The project is built as a **full-stack mobile app**, with a React Native fronten
   - User login and signup.
   
 - **Goods Marketplace**
-  - Browse items (name, description, image, price, contact).
-  - Post goods with details (name, description, image, price, phone number).
+  - Browse items 
+  - Post goods with details 
   - Show interest in goods → seller is notified (email/notification planned).
 
 - **Services Hub**
-  - Browse/offer/request services (name, description, price offered, deadline, contact).
-  - Post services with details (name, description, deadline, price, phone number).
-  - Show interest in services → service owner gets notified.
+  - Browse/offer/request services 
+  - Post services with details
+  - Show interest in services → service owner gets notified (email/notification planned).  
+
 
 - **Interest Tracking**
   - Tab to view all goods/services you have posted.
