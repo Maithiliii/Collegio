@@ -109,28 +109,29 @@ npx react-native run-android
 
 ## Demo Screenshots  
 
-### Auth  
+### Auth
 <p float="left">
-  <img src="./assets/Login.png" alt="Login" width="250"/>
-  <img src="./assets/Signup.png" alt="Signup" width="250"/>
+  <img src="./frontend/assets/Login.png" alt="Login" width="200" />
+  <img src="./frontend/assets/Signup.png" alt="Signup" width="200" />
 </p>
 
-### Home & Updates  
+### Home & Updates
 <p float="left">
-  <img src="./assets/Home.png" alt="Home" width="250"/>
-  <img src="./assets/Updates.png" alt="Updates" width="250"/>
+  <img src="./frontend/assets/Home.png" alt="Home" width="200" />
+  <img src="./frontend/assets/Updates.png" alt="Updates" width="200" />
 </p>
 
-### Goods & Services  
+### Goods & Services
 <p float="left">
-  <img src="./assets/GoodsList.png" alt="Goods List" width="250"/>
-  <img src="./assets/ServicesList.png" alt="Services List" width="250"/>
+  <img src="./frontend/assets/GoodsList.png" alt="Goods List" width="200" />
+  <img src="./frontend/assets/ServicesList.png" alt="Services List" width="200" />
 </p>
 
-### Posting  
+### Posting
 <p float="left">
-  <img src="./assets/PostGoods.png" alt="Post Goods" width="250"/>
-  <img src="./assets/PostService.png" alt="Post Service" width="250"/>
+  <img src="./frontend/assets/PostGoods.png" alt="Post Goods" width="200" />
+  <img src="./frontend/assets/PostService.png" alt="Post Service" width="200" />
 </p>
+
 
 
