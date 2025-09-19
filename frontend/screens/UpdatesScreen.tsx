@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { REACT_APP_API_URL } from "@env";
 
 type PostItem = {
   _id: string;
@@ -38,47 +39,28 @@ const UpdatesScreen: React.FC = () => {
         if (!token) return;
 
         const [resGoods, resServices] = await Promise.all([
-          axios.get("http://10.0.2.2:5000/posts/my-posts", {
+          axios.get(`${REACT_APP_API_URL}/posts/my-posts`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://10.0.2.2:5000/requests/my-posts", {
+          axios.get(`${REACT_APP_API_URL}/requests/my-posts`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
 
-        const goodsPosts: PostItem[] = resGoods.data.map((g: any) => ({
-          ...g,
-          type: "Goods",
-        }));
-        const servicePosts: PostItem[] = resServices.data.map((s: any) => ({
-          ...s,
-          type: "Service",
-        }));
+        setMyPosts([
+          ...resGoods.data.map((g: any) => ({ ...g, type: "Goods" as const })),
+          ...resServices.data.map((s: any) => ({ ...s, type: "Service" as const })),
+        ]);
 
-        setMyPosts([...goodsPosts, ...servicePosts]);
-
-  
         const [goodsInterestRes, servicesInterestRes] = await Promise.all([
-          axios.get("http://10.0.2.2:5000/posts/my-interests", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get("http://10.0.2.2:5000/requests/my-interests", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          axios.get(`${REACT_APP_API_URL}/posts/my-interests`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${REACT_APP_API_URL}/requests/my-interests`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
-        const interestsData: InterestItem[] = [
-          ...goodsInterestRes.data.map((p: any) => ({
-            user: p.postedBy,
-            post: { ...p, type: "Goods" as const },
-          })),
-          ...servicesInterestRes.data.map((r: any) => ({
-            user: r.requestedBy,
-            post: { ...r, type: "Service" as const },
-          })),
-        ];
-
-        setInterests(interestsData);
+        setInterests([
+          ...goodsInterestRes.data.map((p: any) => ({ user: p.postedBy, post: { ...p, type: "Goods" as const } })),
+          ...servicesInterestRes.data.map((r: any) => ({ user: r.requestedBy, post: { ...r, type: "Service" as const } })),
+        ]);
       } catch (err) {
         console.error("Failed to fetch posts or interests:", err);
       }
@@ -108,18 +90,14 @@ const UpdatesScreen: React.FC = () => {
         {activeTab === "posts" &&
           myPosts.map((item) => (
             <View key={item._id} style={styles.card}>
-              {item.images?.length ? (
-                <Image source={{ uri: item.images[0] }} style={styles.image} />
-              ) : null}
+              {item.images?.length && <Image source={{ uri: item.images[0] }} style={styles.image} />}
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>{item.title}</Text>
                 {item.type === "Goods" && <Text>₹{item.price ?? "N/A"}</Text>}
                 {item.type === "Service" && (
                   <>
                     <Text>Payment: ₹{item.payment ?? "N/A"}</Text>
-                    {item.deadline && (
-                      <Text>Deadline: {item.deadline.split("T")[0]}</Text>
-                    )}
+                    {item.deadline && <Text>Deadline: {item.deadline.split("T")[0]}</Text>}
                   </>
                 )}
               </View>
@@ -130,8 +108,7 @@ const UpdatesScreen: React.FC = () => {
           interests.map((int, idx) => (
             <View key={idx} style={styles.interestBox}>
               <Text style={styles.user}>
-                {int.user.name ?? "Unknown"} ({int.user.email ?? "N/A"} |{" "}
-                {int.user.contactNumber ?? "N/A"})
+                {int.user.name ?? "Unknown"} ({int.user.email ?? "N/A"} | {int.user.contactNumber ?? "N/A"})
               </Text>
               <View style={styles.card}>
                 <Text style={styles.title}>{int.post.title}</Text>
@@ -139,9 +116,7 @@ const UpdatesScreen: React.FC = () => {
                 {int.post.type === "Service" && (
                   <>
                     <Text>Payment: ₹{int.post.payment ?? "N/A"}</Text>
-                    {int.post.deadline && (
-                      <Text>Deadline: {int.post.deadline.split("T")[0]}</Text>
-                    )}
+                    {int.post.deadline && <Text>Deadline: {int.post.deadline.split("T")[0]}</Text>}
                   </>
                 )}
               </View>
@@ -158,15 +133,7 @@ const styles = StyleSheet.create({
   tab: { paddingVertical: 10, paddingHorizontal: 20 },
   activeTab: { borderBottomWidth: 2, borderBottomColor: "#FFD000" },
   tabText: { fontWeight: "bold", fontSize: 16 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    marginVertical: 8,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    elevation: 2,
-  },
+  card: { flexDirection: "row", alignItems: "center", padding: 10, marginVertical: 8, borderRadius: 10, backgroundColor: "#fff", elevation: 2 },
   image: { width: 50, height: 50, borderRadius: 8, marginRight: 10 },
   title: { fontSize: 16, fontWeight: "bold" },
   interestBox: { marginBottom: 15, padding: 10, backgroundColor: "#fff6cc", borderRadius: 10 },
