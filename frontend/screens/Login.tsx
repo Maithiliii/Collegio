@@ -5,10 +5,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { REACT_APP_API_URL } from '@env';
+import Logo from '../assets/Logo.png'; 
 
 type LoginScreenProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
-
-import Logo from '../assets/Logo.png'; 
 
 const Login = () => {
   const navigation = useNavigation<LoginScreenProp>();
@@ -20,7 +20,7 @@ const Login = () => {
 
   const handleSubmit = async () => {
     try {
-      const res = await axios.post('http://10.0.2.2:5000/users/login', formData);
+      const res = await axios.post(`${REACT_APP_API_URL}/users/login`, formData);
       const { token, user } = res.data;
 
       await AsyncStorage.setItem('token', token);
