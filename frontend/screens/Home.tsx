@@ -12,7 +12,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import axios from "axios";
 import BellIcon from "../assets/Bell.png";
-import { BACKEND_URL } from '@env';
+import { REACT_APP_API_URL } from "@env";
 
 type HomeProps = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -35,28 +35,28 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
 
   const fetchFeed = async () => {
     try {
-      const goodsRes = await axios.get(`${BACKEND_URL}/posts`);
-      const servicesRes = await axios.get(`${BACKEND_URL}/requests`);
+      const goodsRes = await axios.get(`${REACT_APP_API_URL}/posts`);
+      const servicesRes = await axios.get(`${REACT_APP_API_URL}/requests`);
 
-      const goods = goodsRes.data.map((g: any) => ({
+      const goods: Post[] = goodsRes.data.map((g: any) => ({
         ...g,
-        type: "Goods" as const,
+        type: "Goods",
         createdAt: g.createdAt ?? new Date().toISOString(),
       }));
-      const services = servicesRes.data.map((s: any) => ({
+
+      const services: Post[] = servicesRes.data.map((s: any) => ({
         ...s,
-        type: "Service" as const,
+        type: "Service",
         createdAt: s.createdAt ?? new Date().toISOString(),
       }));
 
       const combined = [...goods, ...services].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
       setPosts(combined);
-    } catch (err) {
-      console.error("Failed to fetch feed:", err);
+    } catch (err: any) {
+      console.error("Failed to fetch feed:", err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -74,35 +74,21 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
       <View style={styles.headerRow}>
         <Text style={styles.greeting}>Hello, {userName}!</Text>
         <TouchableOpacity onPress={() => navigation.navigate("Updates")}>
-          <Image
-            source={BellIcon}
-            style={{ width: 28, height: 28, resizeMode: "contain" }}
-          />
+          <Image source={BellIcon} style={{ width: 28, height: 28, resizeMode: "contain" }} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.row}>
-        <TouchableOpacity
-          style={styles.box}
-          onPress={() => navigation.navigate("Goods", {})}
-        >
+        <TouchableOpacity style={styles.box} onPress={() => navigation.navigate("Goods")}>
           <Text style={styles.boxText}>Goods</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.box}
-          onPress={() => navigation.navigate("Services", {})}
-        >
+        <TouchableOpacity style={styles.box} onPress={() => navigation.navigate("Services")}>
           <Text style={styles.boxText}>Services</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.postBox}
-        onPress={() => navigation.navigate("Post")}
-      >
-        <Text style={styles.postText}>
-          Post your goods or request a service
-        </Text>
+      <TouchableOpacity style={styles.postBox} onPress={() => navigation.navigate("Post")}>
+        <Text style={styles.postText}>Post your goods or request a service</Text>
       </TouchableOpacity>
 
       <View style={styles.recentBox}>
@@ -115,28 +101,19 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{item.title}</Text>
 
-              {item.type === "Goods" && (
-                <Text style={styles.price}>₹{item.price}</Text>
-              )}
+              {item.type === "Goods" && <Text style={styles.price}>₹{item.price}</Text>}
               {item.type === "Service" && (
                 <>
-                  <Text style={styles.price}>
-                    Payment: ₹{item.payment ?? "N/A"}
-                  </Text>
+                  <Text style={styles.price}>Payment: ₹{item.payment ?? "N/A"}</Text>
                   {item.deadline && (
-                    <Text style={styles.deadline}>
-                      Deadline: {item.deadline.split("T")[0]}
-                    </Text>
+                    <Text style={styles.deadline}>Deadline: {item.deadline.split("T")[0]}</Text>
                   )}
                 </>
               )}
 
               <TouchableOpacity
                 onPress={() =>
-                  navigation.navigate(
-                    item.type === "Goods" ? "Goods" : "Services",
-                    { focusId: item._id }
-                  )
+                  navigation.navigate(item.type === "Goods" ? "Goods" : "Services", { focusId: item._id })
                 }
               >
                 <Text style={styles.more}>More Details</Text>
