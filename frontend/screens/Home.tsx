@@ -38,25 +38,25 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
       const goodsRes = await axios.get(`${REACT_APP_API_URL}/posts`);
       const servicesRes = await axios.get(`${REACT_APP_API_URL}/requests`);
 
-      const goods: Post[] = goodsRes.data.map((g: any) => ({
+      const goods = goodsRes.data.map((g: any) => ({
         ...g,
-        type: "Goods",
+        type: "Goods" as const,
         createdAt: g.createdAt ?? new Date().toISOString(),
       }));
-
-      const services: Post[] = servicesRes.data.map((s: any) => ({
+      const services = servicesRes.data.map((s: any) => ({
         ...s,
-        type: "Service",
+        type: "Service" as const,
         createdAt: s.createdAt ?? new Date().toISOString(),
       }));
 
       const combined = [...goods, ...services].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
       setPosts(combined);
-    } catch (err: any) {
-      console.error("Failed to fetch feed:", err.response?.data || err.message);
+    } catch (err) {
+      console.error("Failed to fetch feed:", err);
     } finally {
       setLoading(false);
     }
@@ -74,21 +74,35 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
       <View style={styles.headerRow}>
         <Text style={styles.greeting}>Hello, {userName}!</Text>
         <TouchableOpacity onPress={() => navigation.navigate("Updates")}>
-          <Image source={BellIcon} style={{ width: 28, height: 28, resizeMode: "contain" }} />
+          <Image
+            source={BellIcon}
+            style={{ width: 28, height: 28, resizeMode: "contain" }}
+          />
         </TouchableOpacity>
       </View>
 
       <View style={styles.row}>
-        <TouchableOpacity style={styles.box} onPress={() => navigation.navigate("Goods")}>
+        <TouchableOpacity
+          style={styles.box}
+          onPress={() => navigation.navigate("Goods", {})}
+        >
           <Text style={styles.boxText}>Goods</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.box} onPress={() => navigation.navigate("Services")}>
+        <TouchableOpacity
+          style={styles.box}
+          onPress={() => navigation.navigate("Services", {})}
+        >
           <Text style={styles.boxText}>Services</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.postBox} onPress={() => navigation.navigate("Post")}>
-        <Text style={styles.postText}>Post your goods or request a service</Text>
+      <TouchableOpacity
+        style={styles.postBox}
+        onPress={() => navigation.navigate("Post")}
+      >
+        <Text style={styles.postText}>
+          Post your goods or request a service
+        </Text>
       </TouchableOpacity>
 
       <View style={styles.recentBox}>
@@ -101,19 +115,28 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{item.title}</Text>
 
-              {item.type === "Goods" && <Text style={styles.price}>₹{item.price}</Text>}
+              {item.type === "Goods" && (
+                <Text style={styles.price}>₹{item.price}</Text>
+              )}
               {item.type === "Service" && (
                 <>
-                  <Text style={styles.price}>Payment: ₹{item.payment ?? "N/A"}</Text>
+                  <Text style={styles.price}>
+                    Payment: ₹{item.payment ?? "N/A"}
+                  </Text>
                   {item.deadline && (
-                    <Text style={styles.deadline}>Deadline: {item.deadline.split("T")[0]}</Text>
+                    <Text style={styles.deadline}>
+                      Deadline: {item.deadline.split("T")[0]}
+                    </Text>
                   )}
                 </>
               )}
 
               <TouchableOpacity
                 onPress={() =>
-                  navigation.navigate(item.type === "Goods" ? "Goods" : "Services", { focusId: item._id })
+                  navigation.navigate(
+                    item.type === "Goods" ? "Goods" : "Services",
+                    { focusId: item._id }
+                  )
                 }
               >
                 <Text style={styles.more}>More Details</Text>
@@ -128,16 +151,48 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#ffeea0ff" },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
   greeting: { fontSize: 24, fontWeight: "bold" },
-  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-  box: { flex: 1, height: 100, marginHorizontal: 5, backgroundColor: "#FFD000", justifyContent: "center", alignItems: "center", borderRadius: 10 },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  box: {
+    flex: 1,
+    height: 100,
+    marginHorizontal: 5,
+    backgroundColor: "#FFD000",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+  },
   boxText: { fontSize: 18, fontWeight: "bold", color: "#ffffffff" },
-  postBox: { height: 80, backgroundColor: "#FFD000", justifyContent: "center", alignItems: "center", borderRadius: 10, marginBottom: 20 },
+  postBox: {
+    height: 80,
+    backgroundColor: "#FFD000",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+    marginBottom: 20,
+  },
   postText: { fontSize: 20, fontWeight: "bold", color: "#ffffffff" },
   recentBox: { marginTop: 10 },
   recentTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-  card: { flexDirection: "row", alignItems: "center", padding: 10, marginBottom: 12, borderRadius: 10, backgroundColor: "#ffffffff", elevation: 2 },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 10,
+    backgroundColor: "#ffffffff",
+    elevation: 2,
+  },
   image: { width: 60, height: 60, borderRadius: 8, marginRight: 12 },
   name: { fontSize: 16, fontWeight: "bold" },
   price: { fontSize: 14, color: "green", marginTop: 2 },
