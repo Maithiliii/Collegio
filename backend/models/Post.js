@@ -5,10 +5,10 @@ const postSchema = new mongoose.Schema({
   description: { type: String },
   price: { type: Number },
   postedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  contactNumber: { type: String },
   images: [{ type: String }],
   interestedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], 
   createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model("Post", postSchema);
+
