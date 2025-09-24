@@ -15,8 +15,7 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priceOrDeadline, setPriceOrDeadline] = useState("");
-  const [phone, setPhone] = useState("");
-  const [payment, setPayment] = useState("");
+  const [payment, setPayment] = useState(""); 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -24,7 +23,6 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
     setTitle("");
     setDescription("");
     setPriceOrDeadline("");
-    setPhone("");
     setPayment("");
     setImageUri(null);
   };
@@ -50,27 +48,24 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
-    if (
-      !title ||
-      !description ||
-      !phone ||
-      (type === "Goods" && !priceOrDeadline) ||
-      (type === "Service" && (!payment || !priceOrDeadline))
-    ) {
-      Alert.alert("Error", "Please fill all fields");
+    if (!title || !description || (type === "Goods" && !priceOrDeadline) || (type === "Service" && (!payment || !priceOrDeadline))) {
+      Alert.alert("Error", "Please fill all required fields");
       return;
     }
 
     try {
       const token = await AsyncStorage.getItem("token");
-      if (!token) {
+      const phone = await AsyncStorage.getItem("phone");
+      if (!token || !phone) {
         Alert.alert("Error", "You must be logged in");
         return;
       }
 
       let url = "";
       let data: any = {};
-      let headers: any = { Authorization: `Bearer ${token}` };
+      let headers: any = {
+        Authorization: `Bearer ${token}`,
+      };
 
       if (type === "Goods") {
         const formData = new FormData();
@@ -91,17 +86,28 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
         headers["Content-Type"] = "multipart/form-data";
         url = `${REACT_APP_API_URL}/posts`;
       } else {
-        data = { title, description, contactNumber: phone, deadline: priceOrDeadline, payment };
+        data = {
+          title,
+          description,
+          contactNumber: phone,
+          deadline: priceOrDeadline,
+          payment: payment, 
+        };
+
         headers["Content-Type"] = "application/json";
         url = `${REACT_APP_API_URL}/requests`;
       }
 
       await axios.post(url, data, { headers });
+
       Alert.alert("Success", `Your ${type} has been posted!`);
       navigation.goBack();
     } catch (err: any) {
       console.error(err);
-      Alert.alert("Error", err.response?.data?.error || "Something went wrong while posting");
+      Alert.alert(
+        "Error",
+        err.response?.data?.error || "Something went wrong while posting"
+      );
     }
   };
 
@@ -137,13 +143,6 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
         onChangeText={setDescription}
         multiline
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Phone Number"
-        value={phone}
-        keyboardType="phone-pad"
-        onChangeText={setPhone}
-      />
 
       {type === "Goods" ? (
         <>
@@ -168,7 +167,10 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
             keyboardType="numeric"
             onChangeText={setPayment}
           />
-          <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
+          <TouchableOpacity
+            style={styles.input}
+            onPress={() => setShowPicker(true)}
+          >
             <Text>{priceOrDeadline ? priceOrDeadline : "Select Deadline"}</Text>
           </TouchableOpacity>
           {showPicker && (
@@ -178,7 +180,9 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
               minimumDate={new Date()}
               onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
                 setShowPicker(false);
-                if (selectedDate) setPriceOrDeadline(selectedDate.toISOString().split("T")[0]);
+                if (selectedDate) {
+                  setPriceOrDeadline(selectedDate.toISOString().split("T")[0]);
+                }
               }}
             />
           )}
@@ -196,10 +200,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   heading: { fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
   toggleRow: { flexDirection: "row", justifyContent: "center", marginBottom: 20 },
-  toggleButton: { flex: 1, padding: 10, marginHorizontal: 5, borderWidth: 1, borderColor: "#333", borderRadius: 8, alignItems: "center" },
+  toggleButton: {
+    flex: 1,
+    padding: 10,
+    marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: "#333",
+    borderRadius: 8,
+    alignItems: "center",
+  },
   activeToggle: { backgroundColor: "#FFD000" },
   toggleText: { fontSize: 16, fontWeight: "bold" },
-  input: { borderWidth: 1, borderColor: "#999", padding: 10, borderRadius: 8, marginBottom: 15, justifyContent: "center" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#999",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 15,
+    justifyContent: "center",
+  },
   submitButton: { backgroundColor: "#32CD32", padding: 15, borderRadius: 8, alignItems: "center", marginTop: 10 },
   submitText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   preview: { width: 100, height: 100, marginTop: 10, borderRadius: 8 },
