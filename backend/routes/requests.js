@@ -70,4 +70,22 @@ router.get("/my-interests", auth, async (req, res) => {
   }
 });
 
+router.get("/interests-in-my-posts", auth, async (req, res) => {
+  try {
+    const myRequests = await Request.find({ requestedBy: req.userId })
+      .populate("interestedUsers", "name email contactNumber");
+
+    const result = myRequests.flatMap(request =>
+      request.interestedUsers.map(user => ({
+        user,
+        post: request
+      }))
+    );
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
