@@ -4,7 +4,6 @@ const requestSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
   requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  contactNumber: { type: String },
   deadline: { type: Date },
   payment: { type: Number },
   fulfilled: { type: Boolean, default: false },
@@ -13,3 +12,4 @@ const requestSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Request", requestSchema);
+
