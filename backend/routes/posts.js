@@ -15,6 +15,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+
 router.post("/", auth, upload.array("images", 5), async (req, res) => {
   try {
     const { title, description, price, contactNumber } = req.body;
@@ -41,6 +42,7 @@ router.post("/", auth, upload.array("images", 5), async (req, res) => {
   }
 });
 
+
 router.get("/", async (req, res) => {
   try {
     const posts = await Post.find().populate("postedBy", "name email contactNumber");
@@ -49,6 +51,7 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 router.post("/:postId/interest", auth, async (req, res) => {
   try {
@@ -79,6 +82,24 @@ router.get("/my-interests", auth, async (req, res) => {
     const posts = await Post.find({ interestedUsers: req.userId })
       .populate("postedBy", "name email contactNumber");
     res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/interests-in-my-posts", auth, async (req, res) => {
+  try {
+    const myPosts = await Post.find({ postedBy: req.userId })
+      .populate("interestedUsers", "name email contactNumber");
+
+    const result = myPosts.flatMap(post =>
+      post.interestedUsers.map(user => ({
+        user,
+        post
+      }))
+    );
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
