@@ -30,7 +30,7 @@ The project is built as a **full-stack mobile app**, with a React Native fronten
 
 - **Notifications**
   - Bell icon → shows recent activity and recent posts.
-  - Future: in-app push notifications with Socket.IO.
+
 
 ---
 
