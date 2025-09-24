@@ -26,7 +26,7 @@ The project is built as a **full-stack mobile app**, with a React Native fronten
 - **Interest Tracking**
   - Tab to view all goods/services you have posted.
   - Tab to view all goods/services you have shown interest in.
-  - Future: a tab to see who has shown interest in your posts.  
+  - Tab to see who has shown interest in your posts.  
 
 - **Notifications**
   - Bell icon → shows recent activity and recent posts.
@@ -47,8 +47,7 @@ The project is built as a **full-stack mobile app**, with a React Native fronten
 
 ##  Future Scope
 
-- **User Notifications** → Notify users instantly when someone shows interest in their goods/services .  
-- **Interest Tab** → Dedicated tab where sellers can see the list of users who have shown interest in their posts.  
+- **User Notifications** → Notify users instantly through email when someone shows interest in their goods/services .  
 - **In-App Chat** → Built-in chat system so buyers and sellers can directly communicate within the app.  
 - **Digital Payments** → Integration with UPI / online payment gateways instead of limiting transactions to cash.  
 
