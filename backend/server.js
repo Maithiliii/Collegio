@@ -15,10 +15,12 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const userRoutes = require("./routes/users");
 const postRoutes = require("./routes/posts");
 const requestRoutes = require("./routes/requests");
+const lostFoundRoutes = require("./routes/lostfound");
 
 app.use("/users", userRoutes);
 app.use("/posts", postRoutes);
 app.use("/requests", requestRoutes);
+app.use("/lostfound", lostFoundRoutes);
 
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,

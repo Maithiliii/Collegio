@@ -1,26 +1,28 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Image, StyleSheet, ScrollView } from 'react-native';
-import axios from 'axios';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../App';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState } from "react";
+import { View, Text, TextInput, Alert, Image, StyleSheet, ScrollView, Pressable } from "react-native";
+import axios from "axios";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../App";
+import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { REACT_APP_API_URL } from "@env";
+import ShadowBox from "../components/ui/ShadowBox";
+import { colors, font } from "../theme/tokens";
 
-type SignupScreenProp = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
+import Logo from "../assets/Logo.png";
 
-import Logo from '../assets/Logo.png'; 
+type SignupScreenProp = NativeStackNavigationProp<RootStackParamList, "Signup">;
 
 const Signup = () => {
   const navigation = useNavigation<SignupScreenProp>();
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    contactNumber: '',
-    collegeId: '',
-    password: '',
-    confirmPassword: '',
+    name: "",
+    email: "",
+    contactNumber: "",
+    collegeId: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const handleChange = (key: string, value: string) => {
@@ -29,7 +31,7 @@ const Signup = () => {
 
   const handleSubmit = async () => {
     if (formData.password !== formData.confirmPassword) {
-      return Alert.alert('Error', 'Passwords do not match');
+      return Alert.alert("Error", "Passwords do not match");
     }
 
     try {
@@ -44,46 +46,130 @@ const Signup = () => {
       const { token, user } = res.data;
 
       await AsyncStorage.setItem("token", token);
-      await AsyncStorage.setItem("userName", user.name || '');
-      await AsyncStorage.setItem("userEmail", user.email || '');
+      await AsyncStorage.setItem("userName", user.name || "");
+      await AsyncStorage.setItem("userEmail", user.email || "");
       await AsyncStorage.setItem("phone", user.contactNumber || formData.contactNumber);
 
-      Alert.alert('Success', 'Signup successful!');
-      navigation.navigate('Login');
+      navigation.navigate("Login");
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.error || 'Something went wrong');
+      Alert.alert("Error", err.response?.data?.error || "Something went wrong");
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={Logo} style={styles.logo} />
-      <Text style={styles.title}>Sign Up</Text>
-      <TextInput placeholder="Name" value={formData.name} onChangeText={(v) => handleChange('name', v)} style={styles.input} />
-      <TextInput placeholder="Email" value={formData.email} onChangeText={(v) => handleChange('email', v)} style={styles.input} />
-      <TextInput placeholder="Phone Number" value={formData.contactNumber} keyboardType="phone-pad" onChangeText={(v) => handleChange('contactNumber', v)} style={styles.input} />
-      <TextInput placeholder="College ID" value={formData.collegeId} onChangeText={(v) => handleChange('collegeId', v)} style={styles.input} />
-      <TextInput placeholder="Password" secureTextEntry value={formData.password} onChangeText={(v) => handleChange('password', v)} style={styles.input} />
-      <TextInput placeholder="Confirm Password" secureTextEntry value={formData.confirmPassword} onChangeText={(v) => handleChange('confirmPassword', v)} style={styles.input} />
-      
-      <TouchableOpacity onPress={handleSubmit} style={styles.button}>
-        <Text style={styles.buttonText}>Sign Up</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.linkText}>Already have an account? Login</Text>
-      </TouchableOpacity>
+      <View style={styles.brand}>
+        <Image source={Logo} style={styles.logo} />
+        <Text style={styles.title}>Create account</Text>
+      </View>
+
+      <TextInput
+        placeholder="Full name"
+        placeholderTextColor={colors.placeholder}
+        value={formData.name}
+        onChangeText={(v) => handleChange("name", v)}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="College email"
+        placeholderTextColor={colors.placeholder}
+        value={formData.email}
+        onChangeText={(v) => handleChange("email", v)}
+        style={styles.input}
+        autoCapitalize="none"
+      />
+      <TextInput
+        placeholder="Phone number"
+        placeholderTextColor={colors.placeholder}
+        value={formData.contactNumber}
+        keyboardType="phone-pad"
+        onChangeText={(v) => handleChange("contactNumber", v)}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="College ID"
+        placeholderTextColor={colors.placeholder}
+        value={formData.collegeId}
+        onChangeText={(v) => handleChange("collegeId", v)}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Password"
+        placeholderTextColor={colors.placeholder}
+        secureTextEntry
+        value={formData.password}
+        onChangeText={(v) => handleChange("password", v)}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Confirm password"
+        placeholderTextColor={colors.placeholder}
+        secureTextEntry
+        value={formData.confirmPassword}
+        onChangeText={(v) => handleChange("confirmPassword", v)}
+        style={styles.input}
+      />
+
+      <ShadowBox
+        onPress={handleSubmit}
+        bg={colors.orange}
+        radius={12}
+        shadowOffset={3}
+        style={styles.buttonWrapper}
+        contentStyle={styles.buttonContent}
+      >
+        <Text style={styles.buttonText}>Sign up</Text>
+      </ShadowBox>
+
+      <Pressable onPress={() => navigation.navigate("Login")}>
+        <Text style={styles.linkText}>
+          Already have an account? <Text style={styles.linkBold}>Login</Text>
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#c99e7c' },
-  logo: { width: 150, height: 150, marginBottom: 20, borderRadius: 20 },
-  title: { fontSize: 24, marginBottom: 20, textAlign: 'center', fontWeight: 'bold', color: '#fff' },
-  input: { width: '100%', borderWidth: 1, borderColor: '#ccc', backgroundColor: '#fff', marginBottom: 10, padding: 10, borderRadius: 8 },
-  button: { width: '100%', backgroundColor: '#f98120', padding: 15, borderRadius: 8, marginTop: 10 },
-  buttonText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  linkText: { color: '#000000ff', textAlign: 'center', marginTop: 10 },
+  container: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 26,
+    gap: 12,
+    backgroundColor: colors.cream,
+  },
+  brand: { alignItems: "center", gap: 10, marginBottom: 8 },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: colors.ink,
+  },
+  title: { fontSize: 26, fontFamily: font.extrabold, color: colors.ink },
+  input: {
+    width: "100%",
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    fontFamily: font.medium,
+    fontSize: 15,
+    color: colors.ink,
+  },
+  buttonWrapper: { marginTop: 4 },
+  buttonContent: { paddingVertical: 14, alignItems: "center", justifyContent: "center" },
+  buttonText: { fontSize: 16, fontFamily: font.extrabold, color: colors.white },
+  linkText: {
+    textAlign: "center",
+    fontSize: 13.5,
+    fontFamily: font.semibold,
+    color: colors.mutedText,
+    padding: 6,
+  },
+  linkBold: { color: colors.link, fontFamily: font.bold },
 });
 
 export default Signup;

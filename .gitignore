@@ -53,9 +53,11 @@ build/Release
 
 # --- React Native / Android ---
 # Gradle files
-android/.gradle/
-android/app/build/
-android/build/
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/app/.cxx/
+frontend/android/build/
+frontend/android/local.properties
 
 # APKs
 *.apk
@@ -64,7 +66,6 @@ android/build/
 # Android Studio
 *.iml
 .gradle
-/local.properties
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -75,3 +76,6 @@ android/build/
 # Misc
 .DS_Store
 Thumbs.db
+
+# Claude Code local session state
+.claude/

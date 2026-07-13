@@ -1,113 +1,130 @@
-import React, { useEffect, useState, useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Image,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../App";
 import { REACT_APP_API_URL } from "@env";
+import Header from "../components/Header";
+import TabBar from "../components/TabBar";
+import { colors, font } from "../theme/tokens";
 
-type PostItem = {
-  _id: string;
+type Tab = "posts" | "interest" | "mine";
+
+type UpdateItem = {
+  key: string;
   title: string;
-  description?: string;
-  images?: string[];
-  price?: number;
-  payment?: number;
-  deadline?: string;
-  type: "Goods" | "Service";
+  badge: string;
+  badgeBg: string;
+  badgeFg: string;
+  meta: string;
+  person?: { name: string; action: string };
 };
 
-type InterestItem = {
-  user: { name?: string; email?: string; contactNumber?: string };
-  post: PostItem;
+const badgeColors: Record<string, { bg: string; fg: string }> = {
+  GOODS: { bg: colors.goodsBadgeBg, fg: colors.goodsBadgeFg },
+  SERVICE: { bg: colors.serviceBadgeBg, fg: colors.serviceBadgeFg },
+  FOUND: { bg: colors.goodsBadgeBg, fg: colors.goodsBadgeFg },
+  LOST: { bg: colors.serviceBadgeBg, fg: colors.serviceBadgeFg },
 };
+
+const dateOf = (iso?: string) => (iso ? iso.split("T")[0] : "N/A");
+const initial = (name?: string) => (name ?? "?").trim().charAt(0).toUpperCase();
+
+function goodsToItem(g: any): UpdateItem {
+  return {
+    key: `g-${g._id}`,
+    title: g.title,
+    badge: "GOODS",
+    badgeBg: badgeColors.GOODS.bg,
+    badgeFg: badgeColors.GOODS.fg,
+    meta: `₹${g.price ?? "N/A"} · posted ${dateOf(g.createdAt)}`,
+  };
+}
+function serviceToItem(s: any): UpdateItem {
+  return {
+    key: `s-${s._id}`,
+    title: s.title,
+    badge: "SERVICE",
+    badgeBg: badgeColors.SERVICE.bg,
+    badgeFg: badgeColors.SERVICE.fg,
+    meta: `₹${s.payment ?? "N/A"} · due ${dateOf(s.deadline)}`,
+  };
+}
+function lfToItem(l: any): UpdateItem {
+  const badge = (l.kind ?? "LOST").toUpperCase();
+  return {
+    key: `l-${l._id}`,
+    title: l.title,
+    badge,
+    badgeBg: badgeColors[badge].bg,
+    badgeFg: badgeColors[badge].fg,
+    meta: `${l.place ?? "Campus"} · posted ${dateOf(l.createdAt)}`,
+  };
+}
+
+function interestPairToItem(pair: { user: any; post: any }, kind: "goods" | "service" | "lf"): UpdateItem {
+  const base =
+    kind === "goods" ? goodsToItem(pair.post) : kind === "service" ? serviceToItem(pair.post) : lfToItem(pair.post);
+  const action =
+    kind === "goods"
+      ? "is interested in your post"
+      : kind === "service"
+      ? "offered to help with"
+      : "wants to claim/return";
+  return {
+    ...base,
+    person: { name: pair.user?.name ?? "Someone", action },
+  };
+}
 
 const UpdatesScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<
-    "posts" | "interest" | "interestInMine"
-  >("posts");
-  const [myPosts, setMyPosts] = useState<PostItem[]>([]);
-  const [interests, setInterests] = useState<InterestItem[]>([]);
-  const [interestsInMine, setInterestsInMine] = useState<InterestItem[]>([]);
-
-  const tabScrollRef = useRef<ScrollView>(null);
-
-  const handleTabPress = (tab: typeof activeTab, index: number) => {
-    setActiveTab(tab);
-    tabScrollRef.current?.scrollTo({ x: index * 120, animated: true });
-  };
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, "Updates">>();
+  const [activeTab, setActiveTab] = useState<Tab>("posts");
+  const [myPosts, setMyPosts] = useState<UpdateItem[]>([]);
+  const [myInterests, setMyInterests] = useState<UpdateItem[]>([]);
+  const [interestsInMine, setInterestsInMine] = useState<UpdateItem[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) return;
+        const headers = { Authorization: `Bearer ${token}` };
 
-        const [resGoods, resServices] = await Promise.all([
-          axios.get(`${REACT_APP_API_URL}/posts/my-posts`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get(`${REACT_APP_API_URL}/requests/my-posts`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+        const [goodsPosts, servicePosts, lfPosts] = await Promise.all([
+          axios.get(`${REACT_APP_API_URL}/posts/my-posts`, { headers }),
+          axios.get(`${REACT_APP_API_URL}/requests/my-posts`, { headers }),
+          axios.get(`${REACT_APP_API_URL}/lostfound/my-posts`, { headers }),
+        ]);
+        setMyPosts([
+          ...goodsPosts.data.map(goodsToItem),
+          ...servicePosts.data.map(serviceToItem),
+          ...lfPosts.data.map(lfToItem),
         ]);
 
-        const goodsPosts: PostItem[] = resGoods.data.map((g: any) => ({
-          ...g,
-          type: "Goods",
-        }));
-        const servicePosts: PostItem[] = resServices.data.map((s: any) => ({
-          ...s,
-          type: "Service",
-        }));
-        setMyPosts([...goodsPosts, ...servicePosts]);
-
-        const [goodsInterestRes, servicesInterestRes] = await Promise.all([
-          axios.get(`${REACT_APP_API_URL}/posts/my-interests`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get(`${REACT_APP_API_URL}/requests/my-interests`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+        const [goodsInterest, serviceInterest, lfInterest] = await Promise.all([
+          axios.get(`${REACT_APP_API_URL}/posts/my-interests`, { headers }),
+          axios.get(`${REACT_APP_API_URL}/requests/my-interests`, { headers }),
+          axios.get(`${REACT_APP_API_URL}/lostfound/my-interests`, { headers }),
+        ]);
+        setMyInterests([
+          ...goodsInterest.data.map(goodsToItem),
+          ...serviceInterest.data.map(serviceToItem),
+          ...lfInterest.data.map(lfToItem),
         ]);
 
-        const interestsData: InterestItem[] = [
-          ...goodsInterestRes.data.map((p: any) => ({
-            user: p.postedBy,
-            post: { ...p, type: "Goods" as const },
-          })),
-          ...servicesInterestRes.data.map((r: any) => ({
-            user: r.requestedBy,
-            post: { ...r, type: "Service" as const },
-          })),
-        ];
-        setInterests(interestsData);
-
-        const [goodsInMine, servicesInMine] = await Promise.all([
-          axios.get(`${REACT_APP_API_URL}/posts/interests-in-my-posts`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get(`${REACT_APP_API_URL}/requests/interests-in-my-posts`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+        const [goodsInMine, servicesInMine, lfInMine] = await Promise.all([
+          axios.get(`${REACT_APP_API_URL}/posts/interests-in-my-posts`, { headers }),
+          axios.get(`${REACT_APP_API_URL}/requests/interests-in-my-posts`, { headers }),
+          axios.get(`${REACT_APP_API_URL}/lostfound/interests-in-my-posts`, { headers }),
         ]);
-
-        const interestsInMineData: InterestItem[] = [
-          ...goodsInMine.data.map((item: any) => ({
-            user: item.user,
-            post: { ...item.post, type: "Goods" as const },
-          })),
-          ...servicesInMine.data.map((item: any) => ({
-            user: item.user,
-            post: { ...item.post, type: "Service" as const },
-          })),
-        ];
-        setInterestsInMine(interestsInMineData);
+        setInterestsInMine([
+          ...goodsInMine.data.map((p: any) => interestPairToItem(p, "goods")),
+          ...servicesInMine.data.map((p: any) => interestPairToItem(p, "service")),
+          ...lfInMine.data.map((p: any) => interestPairToItem(p, "lf")),
+        ]);
       } catch (err: any) {
         console.warn("Fetch failed:", err?.response?.status || err.message);
       }
@@ -116,124 +133,114 @@ const UpdatesScreen: React.FC = () => {
     fetchData();
   }, []);
 
-  const renderPostCard = (item: PostItem) => (
-    <View key={item._id} style={styles.card}>
-      {item.images?.length ? (
-        <Image source={{ uri: item.images[0] }} style={styles.image} />
-      ) : null}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.title}>{item.title}</Text>
-        {item.type === "Goods" && <Text>₹{item.price ?? "N/A"}</Text>}
-        {item.type === "Service" && (
-          <>
-            <Text>Payment: ₹{item.payment ?? "N/A"}</Text>
-            {item.deadline && (
-              <Text>Deadline: {item.deadline.split("T")[0]}</Text>
-            )}
-          </>
-        )}
-      </View>
-    </View>
-  );
+  const lists: Record<Tab, UpdateItem[]> = {
+    posts: myPosts,
+    interest: myInterests,
+    mine: interestsInMine,
+  };
+  const activeList = lists[activeTab];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.tabsRow}>
-        <ScrollView
-          horizontal
-          ref={tabScrollRef}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabs}
-        >
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "posts" && styles.activeTab]}
-            onPress={() => handleTabPress("posts", 0)}
-          >
-            <Text style={styles.tabText}>My Posts</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "interest" && styles.activeTab]}
-            onPress={() => handleTabPress("interest", 1)}
-          >
-            <Text style={styles.tabText}>Shown Interest</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === "interestInMine" && styles.activeTab,
-            ]}
-            onPress={() => handleTabPress("interestInMine", 2)}
-          >
-            <Text style={styles.tabText}>Shown Interest in My Posts</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
+    <View style={styles.screen}>
+      <Header title="Your updates" onBackPress={() => navigation.goBack()} bottomPadding={0}>
+        <View style={styles.tabsRow}>
+          {(
+            [
+              { key: "posts", label: "My posts" },
+              { key: "interest", label: "My interests" },
+              { key: "mine", label: "On my posts" },
+            ] as const
+          ).map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <Pressable key={tab.key} onPress={() => setActiveTab(tab.key)} style={styles.tab}>
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
+                {active && <View style={styles.tabUnderline} />}
+              </Pressable>
+            );
+          })}
+        </View>
+      </Header>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {activeTab === "posts" && myPosts.map(renderPostCard)}
-
-        {activeTab === "interest" &&
-          interests.map((int, idx) => (
-            <View key={idx} style={styles.interestBox}>
-              <Text style={styles.user}>
-                {int.user.name ?? "Unknown"} ({int.user.email ?? "N/A"} |{" "}
-                {int.user.contactNumber ?? "N/A"})
-              </Text>
-              {renderPostCard(int.post)}
+      <ScrollView contentContainerStyle={styles.list}>
+        {activeList.map((item) => (
+          <View key={item.key} style={styles.card}>
+            {item.person && (
+              <View style={styles.personRow}>
+                <View style={styles.personAvatar}>
+                  <Text style={styles.personAvatarText}>{initial(item.person.name)}</Text>
+                </View>
+                <Text style={styles.personText}>
+                  <Text style={styles.personName}>{item.person.name}</Text> {item.person.action}
+                </Text>
+              </View>
+            )}
+            <View style={styles.cardTopRow}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              <View style={[styles.badge, { backgroundColor: item.badgeBg }]}>
+                <Text style={[styles.badgeText, { color: item.badgeFg }]}>{item.badge}</Text>
+              </View>
             </View>
-          ))}
-
-        {activeTab === "interestInMine" &&
-          interestsInMine.map((int, idx) => (
-            <View key={idx} style={styles.interestBox}>
-              <Text style={styles.user}>
-                {int.user.name ?? "Unknown"} ({int.user.email ?? "N/A"} |{" "}
-                {int.user.contactNumber ?? "N/A"})
-              </Text>
-              {renderPostCard(int.post)}
-            </View>
-          ))}
+            <Text style={styles.cardMeta}>{item.meta}</Text>
+          </View>
+        ))}
+        {activeList.length === 0 && (
+          <Text style={styles.emptyText}>
+            Nothing here yet — show interest in a post and it'll appear here.
+          </Text>
+        )}
       </ScrollView>
+      <TabBar />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FDF8E1" },
-  tabsRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  tabs: { flexDirection: "row" },
-  tab: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#FFD000",
-  },
-  tabText: { fontWeight: "bold", fontSize: 16 },
+  screen: { flex: 1, backgroundColor: colors.cream },
+  tabsRow: { flexDirection: "row", gap: 2 },
+  tab: { paddingVertical: 9, paddingHorizontal: 12 },
+  tabText: { fontSize: 12, fontFamily: font.extrabold, color: "rgba(42,33,24,.55)" },
+  tabTextActive: { color: colors.ink },
+  tabUnderline: { height: 3.5, backgroundColor: colors.ink, marginTop: 6, borderRadius: 2 },
+  list: { padding: 20, gap: 12 },
   card: {
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+    marginBottom: 12,
+  },
+  personRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    marginVertical: 8,
-    marginHorizontal: 15,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    elevation: 2,
+    gap: 8,
+    paddingBottom: 7,
+    marginBottom: 2,
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.dashedDivider,
+    borderStyle: "dashed",
   },
-  image: { width: 50, height: 50, borderRadius: 8, marginRight: 10 },
-  title: { fontSize: 16, fontWeight: "bold" },
-  interestBox: {
-    marginBottom: 15,
-    marginHorizontal: 15,
-    padding: 10,
-    backgroundColor: "#fff6cc",
-    borderRadius: 10,
+  personAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.orange,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  user: { fontWeight: "bold", marginBottom: 5 },
+  personAvatarText: { fontSize: 11, fontFamily: font.extrabold, color: colors.white },
+  personText: { fontSize: 12.5, lineHeight: 17, color: colors.bodySecondary, fontFamily: font.regular, flexShrink: 1 },
+  personName: { fontFamily: font.extrabold, color: colors.ink },
+  cardTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  cardTitle: { fontSize: 14.5, fontFamily: font.bold, color: colors.ink, flexShrink: 1 },
+  badge: { borderWidth: 2, borderColor: colors.ink, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 8 },
+  badgeText: { fontSize: 10, fontFamily: font.extrabold, letterSpacing: 0.5 },
+  cardMeta: { fontSize: 12.5, fontFamily: font.semibold, color: colors.bodySecondary },
+  emptyText: { textAlign: "center", padding: 36, color: colors.mutedText, fontFamily: font.semibold, fontSize: 13.5 },
 });
 
 export default UpdatesScreen;

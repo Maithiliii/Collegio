@@ -3,11 +3,11 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   Alert,
   Image,
   StyleSheet,
   ScrollView,
+  Pressable,
 } from "react-native";
 import axios from "axios";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -15,11 +15,12 @@ import { RootStackParamList } from "../App";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { REACT_APP_API_URL } from "@env";
-
-type LoginScreenProp = NativeStackNavigationProp<RootStackParamList, "Login">;
+import ShadowBox from "../components/ui/ShadowBox";
+import { colors, font } from "../theme/tokens";
 
 import Logo from "../assets/Logo.png";
 
+type LoginScreenProp = NativeStackNavigationProp<RootStackParamList, "Login">;
 
 const api = axios.create({
   baseURL: REACT_APP_API_URL,
@@ -37,10 +38,6 @@ const Login = () => {
 
   const handleSubmit = async () => {
     try {
-      
-      console.log("API URL from .env:", REACT_APP_API_URL);
-      console.log("Final Login URL:", `${REACT_APP_API_URL}/users/login`);
-
       const res = await api.post("/users/login", formData);
       const { token, user } = res.data;
 
@@ -48,10 +45,8 @@ const Login = () => {
       await AsyncStorage.setItem("userName", user.name || "");
       await AsyncStorage.setItem("userEmail", user.email || "");
 
-      Alert.alert("Success", "Login successful!");
       navigation.replace("Home", { name: user.name });
     } catch (err: any) {
-      console.log("Login error:", err.response?.data || err.message);
       Alert.alert(
         "Error",
         err.response?.data?.error || "Invalid credentials or server error"
@@ -61,10 +56,17 @@ const Login = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={Logo} style={styles.logo} />
-      <Text style={styles.title}>Login</Text>
+      <View style={styles.brand}>
+        <Image source={Logo} style={styles.logo} />
+        <Text style={styles.appName}>Collegio</Text>
+        <Text style={styles.tagline}>
+          Your campus marketplace —{"\n"}buy, sell & help each other out
+        </Text>
+      </View>
+
       <TextInput
-        placeholder="Email"
+        placeholder="College email"
+        placeholderTextColor={colors.placeholder}
         value={formData.email}
         onChangeText={(v) => handleChange("email", v)}
         style={styles.input}
@@ -72,19 +74,29 @@ const Login = () => {
       />
       <TextInput
         placeholder="Password"
+        placeholderTextColor={colors.placeholder}
         secureTextEntry
         value={formData.password}
         onChangeText={(v) => handleChange("password", v)}
         style={styles.input}
       />
-      <TouchableOpacity onPress={handleSubmit} style={styles.button}>
+
+      <ShadowBox
+        onPress={handleSubmit}
+        bg={colors.orange}
+        radius={12}
+        shadowOffset={3}
+        style={styles.buttonWrapper}
+        contentStyle={styles.buttonContent}
+      >
         <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
+      </ShadowBox>
+
+      <Pressable onPress={() => navigation.navigate("Signup")}>
         <Text style={styles.linkText}>
-          Don&apos;t have an account? Sign Up
+          Don't have an account? <Text style={styles.linkBold}>Sign up</Text>
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     </ScrollView>
   );
 };
@@ -93,36 +105,48 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#c99e7c",
+    padding: 26,
+    gap: 14,
+    backgroundColor: colors.cream,
   },
-  logo: { width: 150, height: 150, marginBottom: 20, borderRadius: 20 },
-  title: {
-    fontSize: 24,
-    marginBottom: 20,
+  brand: { alignItems: "center", gap: 12, marginBottom: 10 },
+  logo: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 3,
+    borderColor: colors.ink,
+  },
+  appName: { fontSize: 30, fontFamily: font.extrabold, color: colors.ink },
+  tagline: {
+    fontSize: 14,
+    fontFamily: font.medium,
+    color: colors.mutedText,
     textAlign: "center",
-    fontWeight: "bold",
-    color: "#fff",
   },
   input: {
     width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    backgroundColor: "#fff",
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    fontFamily: font.medium,
+    fontSize: 15,
+    color: colors.ink,
   },
-  button: {
-    width: "100%",
-    backgroundColor: "#f98120",
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 10,
+  buttonWrapper: { marginTop: 4 },
+  buttonContent: { paddingVertical: 14, alignItems: "center", justifyContent: "center" },
+  buttonText: { fontSize: 16, fontFamily: font.extrabold, color: colors.white },
+  linkText: {
+    textAlign: "center",
+    fontSize: 13.5,
+    fontFamily: font.semibold,
+    color: colors.mutedText,
+    padding: 6,
   },
-  buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
-  linkText: { color: "#000000ff", textAlign: "center", marginTop: 10 },
+  linkBold: { color: colors.link, fontFamily: font.bold },
 });
 
 export default Login;

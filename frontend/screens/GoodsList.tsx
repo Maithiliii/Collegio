@@ -1,21 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  ActivityIndicator,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  TextInput,
-} from "react-native";
+import { View, Text, FlatList, ActivityIndicator, Image, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
-import { REACT_APP_API_URL } from "@env"; 
-
+import { REACT_APP_API_URL } from "@env";
+import Header from "../components/Header";
+import SearchBar from "../components/SearchBar";
+import TabBar from "../components/TabBar";
+import ShadowBox from "../components/ui/ShadowBox";
+import ConfirmModal from "../components/ui/ConfirmModal";
+import Toast, { useToast } from "../components/ui/Toast";
+import { colors, font } from "../theme/tokens";
+import { timeAgo } from "../utils/timeAgo";
 
 type GoodItem = {
   _id: string;
@@ -23,7 +20,6 @@ type GoodItem = {
   description: string;
   price?: number;
   images?: string[];
-  contactNumber?: string; 
   postedBy?: {
     name?: string;
     email?: string;
@@ -40,6 +36,8 @@ export default function GoodsList({ route }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [confirmItem, setConfirmItem] = useState<GoodItem | null>(null);
+  const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<GoodItem>>(null);
 
   useEffect(() => {
@@ -66,39 +64,22 @@ export default function GoodsList({ route }: Props) {
     }
   };
 
-  const confirmInterested = (item: GoodItem) => {
-    Alert.alert(
-      "Confirm Interest",
-      `Are you sure you want to show interest in "${item.title}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: () => handleInterested(item),
-        },
-      ]
-    );
-  };
-
-  const handleInterested = async (item: GoodItem) => {
+  const handleInterested = async () => {
+    const item = confirmItem;
+    setConfirmItem(null);
+    if (!item) return;
     try {
       const token = await AsyncStorage.getItem("token");
-      if (!token)
-        return Alert.alert("Error", "You must be logged in to show interest");
+      if (!token) return showToast("You must be logged in to show interest");
 
       await axios.post(
         `${REACT_APP_API_URL}/posts/${item._id}/interest`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      Alert.alert(
-        "Success",
-        `You have shown interest in "${item.title}". You’ll be contacted soon by the owner.`
-      );
+      showToast(`${item.postedBy?.name ?? "The seller"} has been notified!`);
     } catch (err: any) {
-      console.error(err);
-      Alert.alert("Error", err.response?.data?.error || "Failed to show interest");
+      showToast(err.response?.data?.error || "Failed to show interest");
     }
   };
 
@@ -106,88 +87,108 @@ export default function GoodsList({ route }: Props) {
     item.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return <ActivityIndicator size="large" style={{ marginTop: 20 }} />;
-  if (error) return <Text style={{ color: "red", textAlign: "center" }}>{error}</Text>;
+  if (loading) return <ActivityIndicator size="large" style={{ marginTop: 30 }} />;
+  if (error) return <Text style={styles.errorText}>{error}</Text>;
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search goods by title..."
-        value={search}
-        onChangeText={setSearch}
-      />
+    <View style={styles.screen}>
+      <Header title="Goods">
+        <SearchBar value={search} onChangeText={setSearch} placeholder="Search goods…" />
+      </Header>
       <FlatList
         ref={flatListRef}
         data={filteredGoods}
         keyExtractor={(item) => item._id}
+        contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <View style={styles.card}>
             {item.images?.length ? (
               <Image source={{ uri: item.images[0] }} style={styles.image} />
             ) : (
-              <View style={styles.noImage}>
-                <Text>No Image</Text>
-              </View>
+              <View style={styles.imagePlaceholder} />
             )}
-            <Text style={styles.name}>{item.title}</Text>
-            <Text style={styles.price}>₹{item.price ?? "N/A"}</Text>
-            <Text style={styles.desc}>{item.description}</Text>
-
-            <Text style={styles.contact}>
-              Contact Name: {item.postedBy?.name ?? "Unknown"}
-            </Text>
-            <Text style={styles.contact}>
-              Email: {item.postedBy?.email ?? "N/A"}
-            </Text>
-            <Text style={styles.contact}>
-              Phone: {item.postedBy?.contactNumber ?? item.contactNumber ?? "N/A"}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => confirmInterested(item)}
-            >
-              <Text style={styles.buttonText}>Interested</Text>
-            </TouchableOpacity>
+            <View style={styles.cardBody}>
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>{item.title}</Text>
+                <Text style={styles.price}>₹{item.price ?? "N/A"}</Text>
+              </View>
+              <Text style={styles.desc}>{item.description}</Text>
+              <View style={styles.posterRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {(item.postedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.posterText}>
+                  {item.postedBy?.name ?? "Unknown"} · {timeAgo(item.createdAt)}
+                </Text>
+              </View>
+              <ShadowBox
+                onPress={() => setConfirmItem(item)}
+                bg={colors.yellow}
+                radius={11}
+                shadowOffset={2.5}
+                style={styles.buttonWrapper}
+                contentStyle={styles.buttonContent}
+              >
+                <Text style={styles.buttonText}>I'm interested</Text>
+              </ShadowBox>
+            </View>
           </View>
         )}
       />
+      <TabBar />
+      <ConfirmModal
+        visible={!!confirmItem}
+        heading="Show interest?"
+        body={`"${confirmItem?.title}" — the seller ${confirmItem?.postedBy?.name ?? "the owner"} will be notified and can contact you.`}
+        onCancel={() => setConfirmItem(null)}
+        onConfirm={handleInterested}
+      />
+      <Toast message={toast} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#fff" },
-  search: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 12,
-    height: 40,
-  },
+  screen: { flex: 1, backgroundColor: colors.cream },
+  errorText: { color: "red", textAlign: "center", marginTop: 30 },
+  list: { padding: 20, gap: 14 },
   card: {
-    marginBottom: 15,
-    padding: 15,
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-    elevation: 2,
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 14,
   },
-  image: { width: "100%", height: 150, borderRadius: 8, marginBottom: 10 },
-  noImage: {
+  image: { width: "100%", height: 120, borderBottomWidth: 2.5, borderBottomColor: colors.ink },
+  imagePlaceholder: {
     width: "100%",
-    height: 150,
-    borderRadius: 8,
-    marginBottom: 10,
-    backgroundColor: "#ddd",
-    justifyContent: "center",
-    alignItems: "center",
+    height: 120,
+    backgroundColor: colors.imgStripeA,
+    borderBottomWidth: 2.5,
+    borderBottomColor: colors.ink,
   },
-  name: { fontSize: 18, fontWeight: "bold" },
-  price: { fontSize: 16, color: "green", marginVertical: 5 },
-  desc: { fontSize: 14, marginBottom: 5 },
-  contact: { fontSize: 13, color: "gray" },
-  button: { marginTop: 8, padding: 10, backgroundColor: "#32CD32", borderRadius: 5 },
-  buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
+  cardBody: { padding: 15, gap: 6 },
+  titleRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
+  title: { fontSize: 16, fontFamily: font.extrabold, color: colors.ink, flexShrink: 1 },
+  price: { fontSize: 16, fontFamily: font.extrabold, color: colors.priceEmphasis },
+  desc: { fontSize: 13, fontFamily: font.regular, color: colors.bodySecondary, lineHeight: 18 },
+  posterRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  avatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.yellow,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { fontSize: 11, fontFamily: font.extrabold, color: colors.ink },
+  posterText: { fontSize: 12, fontFamily: font.semibold, color: colors.bodySecondary },
+  buttonWrapper: { marginTop: 6 },
+  buttonContent: { paddingVertical: 11, alignItems: "center", justifyContent: "center" },
+  buttonText: { fontSize: 14, fontFamily: font.extrabold, color: colors.ink },
 });

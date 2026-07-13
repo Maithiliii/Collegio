@@ -1,42 +1,42 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  ActivityIndicator,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  TextInput,
-} from "react-native";
+import { View, Text, FlatList, ActivityIndicator, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRoute } from "@react-navigation/native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../App";
 import { REACT_APP_API_URL } from "@env";
+import Header from "../components/Header";
+import SearchBar from "../components/SearchBar";
+import TabBar from "../components/TabBar";
+import ShadowBox from "../components/ui/ShadowBox";
+import ConfirmModal from "../components/ui/ConfirmModal";
+import Toast, { useToast } from "../components/ui/Toast";
+import { colors, font } from "../theme/tokens";
 
 type ServiceItem = {
   _id: string;
   title: string;
   description: string;
-  contactNumber?: string; // fallback if not inside requestedBy
   payment?: number;
   deadline?: string;
   requestedBy?: {
     name?: string;
     email?: string;
-    contactNumber?: string; 
+    contactNumber?: string;
   };
 };
 
-export default function ServicesList() {
+type Props = NativeStackScreenProps<RootStackParamList, "Services">;
+
+export default function ServicesList({ route }: Props) {
+  const { focusId } = route.params || {};
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-
+  const [confirmItem, setConfirmItem] = useState<ServiceItem | null>(null);
+  const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<ServiceItem>>(null);
-  const route = useRoute<any>();
-  const scrollToId = route.params?.scrollToId;
 
   useEffect(() => {
     fetchServices();
@@ -47,13 +47,13 @@ export default function ServicesList() {
       const res = await axios.get(`${REACT_APP_API_URL}/requests`);
       setServices(res.data);
 
-      if (scrollToId) {
-        setTimeout(() => {
-          const index = res.data.findIndex((s: ServiceItem) => s._id === scrollToId);
-          if (index >= 0 && flatListRef.current) {
-            flatListRef.current.scrollToIndex({ index, animated: true });
-          }
-        }, 500);
+      if (focusId) {
+        const index = res.data.findIndex((s: ServiceItem) => s._id === focusId);
+        if (index !== -1) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({ index, animated: true });
+          }, 400);
+        }
       }
     } catch {
       setError("Failed to load services");
@@ -62,38 +62,22 @@ export default function ServicesList() {
     }
   };
 
-  const confirmInterested = (item: ServiceItem) => {
-    Alert.alert(
-      "Confirm Interest",
-      `Are you sure you want to show interest in "${item.title}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: () => handleInterested(item),
-        },
-      ]
-    );
-  };
-
-  const handleInterested = async (item: ServiceItem) => {
+  const handleInterested = async () => {
+    const item = confirmItem;
+    setConfirmItem(null);
+    if (!item) return;
     try {
       const token = await AsyncStorage.getItem("token");
-      if (!token) return Alert.alert("Error", "You must be logged in to show interest");
+      if (!token) return showToast("You must be logged in to show interest");
 
       await axios.post(
         `${REACT_APP_API_URL}/requests/${item._id}/interest`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      Alert.alert(
-        "Success",
-        `You have shown interest in "${item.title}". You’ll be contacted soon by the owner.`
-      );
+      showToast(`${item.requestedBy?.name ?? "They"} will be notified that you're up for it!`);
     } catch (err: any) {
-      console.error(err);
-      Alert.alert("Error", err.response?.data?.error || "Failed to show interest");
+      showToast(err.response?.data?.error || "Failed to show interest");
     }
   };
 
@@ -101,79 +85,110 @@ export default function ServicesList() {
     item.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading)
-    return <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />;
-  if (error) return <Text style={{ color: "red", textAlign: "center" }}>{error}</Text>;
+  if (loading) return <ActivityIndicator size="large" style={{ marginTop: 30 }} />;
+  if (error) return <Text style={styles.errorText}>{error}</Text>;
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search services by title..."
-        value={search}
-        onChangeText={setSearch}
-      />
+    <View style={styles.screen}>
+      <Header title="Services">
+        <SearchBar value={search} onChangeText={setSearch} placeholder="Search services…" />
+      </Header>
       <FlatList
         ref={flatListRef}
         data={filteredServices}
         keyExtractor={(item) => item._id}
+        contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.name}>{item.title}</Text>
+            <View style={styles.topRow}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>SERVICE</Text>
+              </View>
+              <Text style={styles.due}>
+                Due {item.deadline ? item.deadline.split("T")[0] : "TBD"}
+              </Text>
+            </View>
+            <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.desc}>{item.description}</Text>
-            <Text style={styles.contact}>Payment: ₹{item.payment ?? "N/A"}</Text>
-            <Text style={styles.contact}>
-              Deadline: {item.deadline ? item.deadline.split("T")[0] : "N/A"}
-            </Text>
-
-            <Text style={styles.contact}>
-              Contact Name: {item.requestedBy?.name ?? "Unknown"}
-            </Text>
-            <Text style={styles.contact}>
-              Email: {item.requestedBy?.email ?? "N/A"}
-            </Text>
-            <Text style={styles.contact}>
-              Phone: {item.requestedBy?.contactNumber ?? item.contactNumber ?? "N/A"}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => confirmInterested(item)}
+            <View style={styles.bottomRow}>
+              <View style={styles.posterRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {(item.requestedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.posterText}>{item.requestedBy?.name ?? "Unknown"}</Text>
+              </View>
+              <Text style={styles.payment}>₹{item.payment ?? "N/A"}</Text>
+            </View>
+            <ShadowBox
+              onPress={() => setConfirmItem(item)}
+              bg={colors.yellow}
+              radius={11}
+              shadowOffset={2.5}
+              style={styles.buttonWrapper}
+              contentStyle={styles.buttonContent}
             >
-              <Text style={styles.buttonText}>Interested</Text>
-            </TouchableOpacity>
+              <Text style={styles.buttonText}>I can help</Text>
+            </ShadowBox>
           </View>
         )}
       />
+      <TabBar />
+      <ConfirmModal
+        visible={!!confirmItem}
+        heading="Offer to help?"
+        body={`"${confirmItem?.title}" — ${confirmItem?.requestedBy?.name ?? "they"} will be notified that you're up for it.`}
+        onCancel={() => setConfirmItem(null)}
+        onConfirm={handleInterested}
+      />
+      <Toast message={toast} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#fff" },
-  search: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 12,
-    height: 40,
-  },
+  screen: { flex: 1, backgroundColor: colors.cream },
+  errorText: { color: "red", textAlign: "center", marginTop: 30 },
+  list: { padding: 20, gap: 14 },
   card: {
-    marginBottom: 15,
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    borderRadius: 16,
     padding: 15,
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-    elevation: 2,
+    gap: 7,
+    marginBottom: 14,
   },
-  name: { fontSize: 18, fontWeight: "bold" },
-  desc: { fontSize: 14, marginVertical: 5 },
-  contact: { fontSize: 13, color: "gray" },
-  button: {
-    marginTop: 8,
-    padding: 10,
-    backgroundColor: "#32CD32",
-    borderRadius: 5,
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  badge: {
+    backgroundColor: colors.serviceBadgeBg,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 99,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
   },
-  buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
+  badgeText: { fontSize: 10, fontFamily: font.extrabold, color: colors.serviceBadgeFg, letterSpacing: 0.5 },
+  due: { fontSize: 11.5, fontFamily: font.bold, color: colors.deadlineText },
+  title: { fontSize: 16, fontFamily: font.extrabold, color: colors.ink, lineHeight: 21 },
+  desc: { fontSize: 13, fontFamily: font.regular, color: colors.bodySecondary, lineHeight: 18 },
+  bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
+  posterRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  avatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.yellow,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { fontSize: 11, fontFamily: font.extrabold, color: colors.ink },
+  posterText: { fontSize: 12, fontFamily: font.semibold, color: colors.bodySecondary },
+  payment: { fontSize: 16, fontFamily: font.extrabold, color: colors.priceEmphasis },
+  buttonWrapper: { marginTop: 6 },
+  buttonContent: { paddingVertical: 11, alignItems: "center", justifyContent: "center" },
+  buttonText: { fontSize: 14, fontFamily: font.extrabold, color: colors.ink },
 });
