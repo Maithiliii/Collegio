@@ -20,7 +20,6 @@ const Signup = () => {
     name: "",
     email: "",
     contactNumber: "",
-    collegeId: "",
     password: "",
     confirmPassword: "",
   });
@@ -28,6 +27,8 @@ const Signup = () => {
   const handleChange = (key: string, value: string) => {
     setFormData({ ...formData, [key]: value });
   };
+
+  const isFormComplete = Object.values(formData).every((v) => v.trim().length > 0);
 
   const handleSubmit = async () => {
     if (formData.password !== formData.confirmPassword) {
@@ -39,7 +40,6 @@ const Signup = () => {
         name: formData.name,
         email: formData.email,
         contactNumber: formData.contactNumber,
-        collegeId: formData.collegeId,
         password: formData.password,
       });
 
@@ -87,13 +87,6 @@ const Signup = () => {
         style={styles.input}
       />
       <TextInput
-        placeholder="College ID"
-        placeholderTextColor={colors.placeholder}
-        value={formData.collegeId}
-        onChangeText={(v) => handleChange("collegeId", v)}
-        style={styles.input}
-      />
-      <TextInput
         placeholder="Password"
         placeholderTextColor={colors.placeholder}
         secureTextEntry
@@ -112,9 +105,10 @@ const Signup = () => {
 
       <ShadowBox
         onPress={handleSubmit}
-        bg={colors.orange}
+        disabled={!isFormComplete}
+        bg={isFormComplete ? colors.orange : colors.mutedText}
         radius={12}
-        shadowOffset={3}
+        shadowOffset={isFormComplete ? 3 : 0}
         style={styles.buttonWrapper}
         contentStyle={styles.buttonContent}
       >

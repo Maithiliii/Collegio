@@ -44,8 +44,9 @@ const Login = () => {
       await AsyncStorage.setItem("token", token);
       await AsyncStorage.setItem("userName", user.name || "");
       await AsyncStorage.setItem("userEmail", user.email || "");
+      await AsyncStorage.setItem("phone", user.contactNumber || "");
 
-      navigation.replace("Home", { name: user.name });
+      navigation.reset({ index: 0, routes: [{ name: "Main" }] });
     } catch (err: any) {
       Alert.alert(
         "Error",
@@ -59,9 +60,6 @@ const Login = () => {
       <View style={styles.brand}>
         <Image source={Logo} style={styles.logo} />
         <Text style={styles.appName}>Collegio</Text>
-        <Text style={styles.tagline}>
-          Your campus marketplace —{"\n"}buy, sell & help each other out
-        </Text>
       </View>
 
       <TextInput
@@ -118,12 +116,6 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
   },
   appName: { fontSize: 30, fontFamily: font.extrabold, color: colors.ink },
-  tagline: {
-    fontSize: 14,
-    fontFamily: font.medium,
-    color: colors.mutedText,
-    textAlign: "center",
-  },
   input: {
     width: "100%",
     backgroundColor: colors.white,

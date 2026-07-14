@@ -1,6 +1,8 @@
 import React from "react";
+import { Image } from "react-native";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { colors } from "../../theme/tokens";
+import ServicesIconSource from "../../assets/icons8-services-50.png";
 
 type IconProps = {
   size?: number;
@@ -79,17 +81,17 @@ export const GoodsTabIcon: React.FC<IconProps> = ({ size = 19, color = colors.in
   </Svg>
 );
 
-export const ServicesTabIcon: React.FC<IconProps> = ({ size = 19, color = colors.ink, strokeWidth = 2.1 }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx={12} cy={12} r={8} stroke={color} strokeWidth={strokeWidth} />
-    <Path d="M12 8v4l3 2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-  </Svg>
+export const ServicesTabIcon: React.FC<IconProps> = ({ size = 19, color = colors.ink }) => (
+  <Image
+    source={ServicesIconSource}
+    resizeMode="contain"
+    style={{ width: size, height: size, tintColor: color }}
+  />
 );
 
 export const LostFoundTabIcon: React.FC<IconProps> = ({ size = 19, color = colors.ink, strokeWidth = 2.1 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx={11} cy={11} r={7} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
     <Path d="m20 20-3.5-3.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-    <Path d="M11 8v3l2 2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
   </Svg>
 );

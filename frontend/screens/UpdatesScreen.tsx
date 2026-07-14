@@ -72,7 +72,9 @@ function interestPairToItem(pair: { user: any; post: any }, kind: "goods" | "ser
       ? "is interested in your post"
       : kind === "service"
       ? "offered to help with"
-      : "wants to claim/return";
+      : pair.post?.kind === "Found"
+      ? "thinks this is theirs"
+      : "found your item";
   return {
     ...base,
     person: { name: pair.user?.name ?? "Someone", action },
@@ -142,20 +144,23 @@ const UpdatesScreen: React.FC = () => {
 
   return (
     <View style={styles.screen}>
-      <Header title="Your updates" onBackPress={() => navigation.goBack()} bottomPadding={0}>
-        <View style={styles.tabsRow}>
+      <Header title="Your updates" onBackPress={() => navigation.goBack()} bottomPadding={16}>
+        <View style={styles.segmentGroup}>
           {(
             [
               { key: "posts", label: "My posts" },
               { key: "interest", label: "My interests" },
-              { key: "mine", label: "On my posts" },
+              { key: "mine", label: "Responses" },
             ] as const
           ).map((tab) => {
             const active = activeTab === tab.key;
             return (
-              <Pressable key={tab.key} onPress={() => setActiveTab(tab.key)} style={styles.tab}>
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
-                {active && <View style={styles.tabUnderline} />}
+              <Pressable
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                style={[styles.segment, active && styles.segmentActive]}
+              >
+                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{tab.label}</Text>
               </Pressable>
             );
           })}
@@ -186,7 +191,7 @@ const UpdatesScreen: React.FC = () => {
         ))}
         {activeList.length === 0 && (
           <Text style={styles.emptyText}>
-            Nothing here yet — show interest in a post and it'll appear here.
+            Nothing here yet. Show interest in a post and it'll appear here.
           </Text>
         )}
       </ScrollView>
@@ -197,12 +202,20 @@ const UpdatesScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream },
-  tabsRow: { flexDirection: "row", gap: 2 },
-  tab: { paddingVertical: 9, paddingHorizontal: 12 },
-  tabText: { fontSize: 12, fontFamily: font.extrabold, color: "rgba(42,33,24,.55)" },
-  tabTextActive: { color: colors.ink },
-  tabUnderline: { height: 3.5, backgroundColor: colors.ink, marginTop: 6, borderRadius: 2 },
-  list: { padding: 20, gap: 12 },
+  segmentGroup: {
+    flexDirection: "row",
+    backgroundColor: colors.white,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    borderRadius: 14,
+    padding: 3,
+    gap: 3,
+  },
+  segment: { flex: 1, paddingVertical: 8, borderRadius: 11, alignItems: "center" },
+  segmentActive: { backgroundColor: colors.ink },
+  segmentText: { fontSize: 12, fontFamily: font.bold, color: colors.ink },
+  segmentTextActive: { color: colors.yellow, fontFamily: font.extrabold },
+  list: { padding: 20, gap: 8 },
   card: {
     backgroundColor: colors.white,
     borderWidth: 2.5,
@@ -210,7 +223,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     gap: 6,
-    marginBottom: 12,
   },
   personRow: {
     flexDirection: "row",

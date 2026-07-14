@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image } from "react-native";
+import { CompositeScreenProps } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
+import { MainTabParamList } from "../navigation/MainTabs";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,13 +15,17 @@ import ShadowBox from "../components/ui/ShadowBox";
 import { BellIcon, ChevronRightIcon } from "../components/ui/Icon";
 import { colors, font } from "../theme/tokens";
 
-type HomeProps = NativeStackScreenProps<RootStackParamList, "Home">;
+type HomeProps = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, "Home">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 type GoodsItem = {
   _id: string;
   title: string;
   description: string;
   price?: number;
+  images?: string[];
   postedBy?: { name?: string };
 };
 type ServiceItem = {
@@ -151,12 +158,14 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
           key: `g-${g._id}`,
           title: g.title,
           priceLabel: `₹${g.price ?? 0}`,
+          image: g.images?.[0],
           onPress: () => navigation.navigate("Goods", {}),
         })),
         ...services.slice(0, 2).map((s) => ({
           key: `s-${s._id}`,
           title: s.title,
           priceLabel: `₹${s.payment ?? 0}`,
+          image: undefined as string | undefined,
           onPress: () => navigation.navigate("Services", {}),
         })),
       ].slice(0, 4),
@@ -274,7 +283,11 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
                 <View style={styles.freshGrid}>
                   {fresh.map((item) => (
                     <Pressable key={item.key} onPress={item.onPress} style={styles.freshCard}>
-                      <View style={styles.freshImage} />
+                      {item.image ? (
+                        <Image source={{ uri: item.image }} style={styles.freshImage} resizeMode="contain" />
+                      ) : (
+                        <View style={styles.freshImage} />
+                      )}
                       <View style={{ padding: 9 }}>
                         <Text style={styles.freshTitle} numberOfLines={1}>
                           {item.title}

@@ -1,12 +1,17 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { CompositeNavigationProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
+import { MainTabParamList } from "../navigation/MainTabs";
 import { HomeTabIcon, GoodsTabIcon, ServicesTabIcon, LostFoundTabIcon, PlusIcon } from "./ui/Icon";
 import { colors, font } from "../theme/tokens";
 
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type NavProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 type TabButtonProps = {
   active: boolean;
@@ -30,20 +35,20 @@ export default function TabBar() {
 
   return (
     <View style={styles.bar}>
-      <TabButton active={route.name === "Home"} label="Home" Icon={HomeTabIcon} onPress={() => navigation.navigate("Home", {})} />
-      <TabButton active={route.name === "Goods"} label="Goods" Icon={GoodsTabIcon} onPress={() => navigation.navigate("Goods", {})} />
+      <TabButton active={route.name === "Home"} label="Home" Icon={HomeTabIcon} onPress={() => navigation.navigate("Main", { screen: "Home" })} />
+      <TabButton active={route.name === "Goods"} label="Goods" Icon={GoodsTabIcon} onPress={() => navigation.navigate("Main", { screen: "Goods" })} />
       <Pressable
         onPress={() => navigation.navigate("Post")}
         style={({ pressed }) => [styles.plusBtn, pressed && styles.plusBtnPressed]}
       >
         <PlusIcon />
       </Pressable>
-      <TabButton active={route.name === "Services"} label="Services" Icon={ServicesTabIcon} onPress={() => navigation.navigate("Services", {})} />
+      <TabButton active={route.name === "Services"} label="Services" Icon={ServicesTabIcon} onPress={() => navigation.navigate("Main", { screen: "Services" })} />
       <TabButton
         active={route.name === "LostFound"}
         label="Lost & Found"
         Icon={LostFoundTabIcon}
-        onPress={() => navigation.navigate("LostFound", {})}
+        onPress={() => navigation.navigate("Main", { screen: "LostFound" })}
       />
     </View>
   );

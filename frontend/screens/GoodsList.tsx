@@ -2,8 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, Image, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CompositeScreenProps } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
+import { MainTabParamList } from "../navigation/MainTabs";
 import { REACT_APP_API_URL } from "@env";
 import Header from "../components/Header";
 import SearchBar from "../components/SearchBar";
@@ -28,7 +31,10 @@ type GoodItem = {
   createdAt?: string;
 };
 
-type Props = NativeStackScreenProps<RootStackParamList, "Goods">;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, "Goods">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export default function GoodsList({ route }: Props) {
   const { focusId } = route.params || {};
@@ -37,11 +43,13 @@ export default function GoodsList({ route }: Props) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [confirmItem, setConfirmItem] = useState<GoodItem | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<GoodItem>>(null);
 
   useEffect(() => {
     fetchGoods();
+    AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
   }, []);
 
   const fetchGoods = async () => {
@@ -100,48 +108,53 @@ export default function GoodsList({ route }: Props) {
         data={filteredGoods}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            {item.images?.length ? (
-              <Image source={{ uri: item.images[0] }} style={styles.image} />
-            ) : (
-              <View style={styles.imagePlaceholder} />
-            )}
-            <View style={styles.cardBody}>
-              <View style={styles.titleRow}>
-                <Text style={styles.title}>{item.title}</Text>
-                <Text style={styles.price}>₹{item.price ?? "N/A"}</Text>
-              </View>
-              <Text style={styles.desc}>{item.description}</Text>
-              <View style={styles.posterRow}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {(item.postedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
+        renderItem={({ item }) => {
+          const isOwnPost = !!currentUserEmail && item.postedBy?.email === currentUserEmail;
+          return (
+            <View style={styles.card}>
+              {item.images?.length ? (
+                <Image source={{ uri: item.images[0] }} style={styles.image} resizeMode="contain" />
+              ) : (
+                <View style={styles.imagePlaceholder} />
+              )}
+              <View style={styles.cardBody}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>{item.title}</Text>
+                  <Text style={styles.price}>₹{item.price ?? "N/A"}</Text>
+                </View>
+                <Text style={styles.desc}>{item.description}</Text>
+                <View style={styles.posterRow}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {(item.postedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.posterText}>
+                    {item.postedBy?.name ?? "Unknown"} · {timeAgo(item.createdAt)}
                   </Text>
                 </View>
-                <Text style={styles.posterText}>
-                  {item.postedBy?.name ?? "Unknown"} · {timeAgo(item.createdAt)}
-                </Text>
+                {!isOwnPost && (
+                  <ShadowBox
+                    onPress={() => setConfirmItem(item)}
+                    bg={colors.yellow}
+                    radius={11}
+                    shadowOffset={2.5}
+                    style={styles.buttonWrapper}
+                    contentStyle={styles.buttonContent}
+                  >
+                    <Text style={styles.buttonText}>I'm interested</Text>
+                  </ShadowBox>
+                )}
               </View>
-              <ShadowBox
-                onPress={() => setConfirmItem(item)}
-                bg={colors.yellow}
-                radius={11}
-                shadowOffset={2.5}
-                style={styles.buttonWrapper}
-                contentStyle={styles.buttonContent}
-              >
-                <Text style={styles.buttonText}>I'm interested</Text>
-              </ShadowBox>
             </View>
-          </View>
-        )}
+          );
+        }}
       />
       <TabBar />
       <ConfirmModal
         visible={!!confirmItem}
         heading="Show interest?"
-        body={`"${confirmItem?.title}" — the seller ${confirmItem?.postedBy?.name ?? "the owner"} will be notified and can contact you.`}
+        body={`You're showing interest in "${confirmItem?.title}". The seller, ${confirmItem?.postedBy?.name ?? "the owner"}, will be notified and can contact you.`}
         onCancel={() => setConfirmItem(null)}
         onConfirm={handleInterested}
       />
@@ -162,7 +175,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 14,
   },
-  image: { width: "100%", height: 120, borderBottomWidth: 2.5, borderBottomColor: colors.ink },
+  image: {
+    width: "100%",
+    height: 120,
+    backgroundColor: colors.imgStripeA,
+    borderBottomWidth: 2.5,
+    borderBottomColor: colors.ink,
+  },
   imagePlaceholder: {
     width: "100%",
     height: 120,

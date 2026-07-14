@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, ActivityIndicator, Pressable, StyleSheet } from "react-native";
+import { View, Text, FlatList, ActivityIndicator, Pressable, Image, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CompositeScreenProps } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
+import { MainTabParamList } from "../navigation/MainTabs";
 import { REACT_APP_API_URL } from "@env";
 import Header from "../components/Header";
 import TabBar from "../components/TabBar";
@@ -20,6 +23,7 @@ type LostFoundItem = {
   place?: string;
   kind: "Lost" | "Found";
   createdAt?: string;
+  images?: string[];
   postedBy?: {
     name?: string;
     email?: string;
@@ -27,7 +31,10 @@ type LostFoundItem = {
   };
 };
 
-type Props = NativeStackScreenProps<RootStackParamList, "LostFound">;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, "LostFound">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 const FILTERS: Array<"All" | "Lost" | "Found"> = ["All", "Lost", "Found"];
 
@@ -38,11 +45,13 @@ export default function LostFoundList({ route }: Props) {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"All" | "Lost" | "Found">("All");
   const [confirmItem, setConfirmItem] = useState<LostFoundItem | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<LostFoundItem>>(null);
 
   useEffect(() => {
     fetchItems();
+    AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
   }, []);
 
   const fetchItems = async () => {
@@ -114,41 +123,51 @@ export default function LostFoundList({ route }: Props) {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
           const isFound = item.kind === "Found";
+          const isOwnPost = !!currentUserEmail && item.postedBy?.email === currentUserEmail;
           return (
             <View style={styles.card}>
-              <View style={styles.topRow}>
-                <View style={[styles.badge, { backgroundColor: isFound ? colors.goodsBadgeBg : colors.serviceBadgeBg }]}>
-                  <Text style={[styles.badgeText, { color: isFound ? colors.goodsBadgeFg : colors.serviceBadgeFg }]}>
-                    {item.kind.toUpperCase()}
-                  </Text>
+              {item.images?.length ? (
+                <Image source={{ uri: item.images[0] }} style={styles.image} resizeMode="contain" />
+              ) : (
+                <View style={styles.imagePlaceholder} />
+              )}
+              <View style={styles.cardBody}>
+                <View style={styles.topRow}>
+                  <View style={[styles.badge, { backgroundColor: isFound ? colors.goodsBadgeBg : colors.serviceBadgeBg }]}>
+                    <Text style={[styles.badgeText, { color: isFound ? colors.goodsBadgeFg : colors.serviceBadgeFg }]}>
+                      {item.kind.toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
                 </View>
-                <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
-              </View>
-              <Text style={styles.title}>{item.title}</Text>
-              <View style={styles.placeRow}>
-                <MapPinIcon />
-                <Text style={styles.place}>{item.place ?? "Campus"}</Text>
-              </View>
-              <View style={styles.posterRow}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {(item.postedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
-                  </Text>
+                <Text style={styles.title}>{item.title}</Text>
+                <View style={styles.placeRow}>
+                  <MapPinIcon />
+                  <Text style={styles.place}>{item.place ?? "Campus"}</Text>
                 </View>
-                <Text style={styles.posterText}>Posted by {item.postedBy?.name ?? "Unknown"}</Text>
+                <View style={styles.posterRow}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {(item.postedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.posterText}>Posted by {item.postedBy?.name ?? "Unknown"}</Text>
+                </View>
+                {!isOwnPost && (
+                  <ShadowBox
+                    onPress={() => setConfirmItem(item)}
+                    bg={colors.orange}
+                    radius={11}
+                    shadowOffset={2.5}
+                    style={styles.buttonWrapper}
+                    contentStyle={styles.buttonContent}
+                  >
+                    <Text style={styles.buttonText}>
+                      {isFound ? "This is mine, message" : "I found it, message"}
+                    </Text>
+                  </ShadowBox>
+                )}
               </View>
-              <ShadowBox
-                onPress={() => setConfirmItem(item)}
-                bg={colors.orange}
-                radius={11}
-                shadowOffset={2.5}
-                style={styles.buttonWrapper}
-                contentStyle={styles.buttonContent}
-              >
-                <Text style={styles.buttonText}>
-                  {isFound ? "This is mine — message" : "I found it — message"}
-                </Text>
-              </ShadowBox>
             </View>
           );
         }}
@@ -187,10 +206,24 @@ const styles = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: colors.ink,
     borderRadius: 16,
-    padding: 15,
-    gap: 7,
+    overflow: "hidden",
     marginBottom: 14,
   },
+  image: {
+    width: "100%",
+    height: 120,
+    backgroundColor: colors.imgStripeB,
+    borderBottomWidth: 2.5,
+    borderBottomColor: colors.ink,
+  },
+  imagePlaceholder: {
+    width: "100%",
+    height: 120,
+    backgroundColor: colors.imgStripeB,
+    borderBottomWidth: 2.5,
+    borderBottomColor: colors.ink,
+  },
+  cardBody: { padding: 15, gap: 7 },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   badge: { borderWidth: 2, borderColor: colors.ink, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9 },
   badgeText: { fontSize: 10, fontFamily: font.extrabold, letterSpacing: 0.5 },

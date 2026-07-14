@@ -1,4 +1,7 @@
 # --- Node / Backend ---
+backend/uploads/*
+!backend/uploads/.gitkeep
+
 # Logs
 logs
 *.log

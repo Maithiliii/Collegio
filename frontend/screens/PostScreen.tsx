@@ -10,17 +10,21 @@ import { REACT_APP_API_URL } from "@env";
 import Header from "../components/Header";
 import TabBar from "../components/TabBar";
 import ShadowBox from "../components/ui/ShadowBox";
-import { PhotoUploadIcon } from "../components/ui/Icon";
+import InfoModal from "../components/ui/InfoModal";
+import { PhotoUploadIcon, ClearIcon, GoodsTabIcon, ServicesTabIcon, LostFoundTabIcon } from "../components/ui/Icon";
 import { colors, font } from "../theme/tokens";
+import { MainTabParamList } from "../navigation/MainTabs";
 
 type PostProps = NativeStackScreenProps<RootStackParamList, "Post">;
 
 type PostType = "Goods" | "Service" | "LostFound";
 
-const TYPE_CHIPS: Array<{ key: PostType; label: string }> = [
-  { key: "Goods", label: "Goods" },
-  { key: "Service", label: "Service" },
-  { key: "LostFound", label: "Lost & Found" },
+type SuccessInfo = { heading: string; body: string; target: keyof MainTabParamList };
+
+const TYPE_CHIPS: Array<{ key: PostType; label: string; Icon: React.FC<{ color?: string }> }> = [
+  { key: "Goods", label: "Goods", Icon: GoodsTabIcon },
+  { key: "Service", label: "Service", Icon: ServicesTabIcon },
+  { key: "LostFound", label: "Lost & Found", Icon: LostFoundTabIcon },
 ];
 
 const PostScreen: React.FC<PostProps> = ({ navigation }) => {
@@ -34,6 +38,14 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
   const [location, setLocation] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
+
+  const handleSuccessClose = () => {
+    if (!successInfo) return;
+    const target = successInfo.target;
+    setSuccessInfo(null);
+    navigation.navigate("Main", { screen: target });
+  };
 
   const resetFields = () => {
     setTitle("");
@@ -69,6 +81,18 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
     type === "Goods" ? "What are you selling?" : type === "Service" ? "What do you need done?" : "What was lost / found?";
   const submitLabel = type === "Goods" ? "Post goods" : type === "Service" ? "Post request" : "Post to Lost & Found";
 
+  const isGoodsComplete =
+    title.trim().length > 0 && description.trim().length > 0 && price.trim().length > 0;
+  const isServiceComplete =
+    title.trim().length > 0 && description.trim().length > 0 && payment.trim().length > 0 && deadline.trim().length > 0;
+  const isLostFoundComplete =
+    title.trim().length > 0 &&
+    description.trim().length > 0 &&
+    location.trim().length > 0 &&
+    (kind === "Lost" || !!imageUri);
+  const canSubmit =
+    type === "Goods" ? isGoodsComplete : type === "Service" ? isServiceComplete : isLostFoundComplete;
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       Alert.alert("Error", "Please add a title first");
@@ -95,9 +119,12 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
         }
         headers["Content-Type"] = "multipart/form-data";
         await axios.post(`${REACT_APP_API_URL}/posts`, formData, { headers });
-        Alert.alert("Success", "Your goods post is live!");
         resetFields();
-        navigation.navigate("Goods", {});
+        setSuccessInfo({
+          heading: "Your goods post is live",
+          body: "Buyers on campus can see it now. We'll let you know when someone's interested.",
+          target: "Goods",
+        });
       } else if (type === "Service") {
         headers["Content-Type"] = "application/json";
         await axios.post(
@@ -105,19 +132,30 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
           { title, description, contactNumber: phone, deadline, payment },
           { headers }
         );
-        Alert.alert("Success", "Your service request is live!");
         resetFields();
-        navigation.navigate("Services", {});
+        setSuccessInfo({
+          heading: "Your request is live",
+          body: "Anyone on campus who can help will see it now. We'll let you know when someone offers.",
+          target: "Services",
+        });
       } else {
-        headers["Content-Type"] = "application/json";
-        await axios.post(
-          `${REACT_APP_API_URL}/lostfound`,
-          { title, description, contactNumber: phone, place: location, kind },
-          { headers }
-        );
-        Alert.alert("Success", "Posted to Lost & Found!");
+        const formData = new FormData();
+        formData.append("title", title);
+        formData.append("description", description);
+        formData.append("contactNumber", phone);
+        formData.append("place", location);
+        formData.append("kind", kind);
+        if (imageUri) {
+          formData.append("images", { uri: imageUri, name: "photo.jpg", type: "image/jpeg" } as any);
+        }
+        headers["Content-Type"] = "multipart/form-data";
+        await axios.post(`${REACT_APP_API_URL}/lostfound`, formData, { headers });
         resetFields();
-        navigation.navigate("LostFound", {});
+        setSuccessInfo({
+          heading: "Posted to Lost & Found",
+          body: "Your post is now visible on campus. We'll let you know if someone reaches out.",
+          target: "LostFound",
+        });
       }
     } catch (err: any) {
       Alert.alert("Error", err.response?.data?.error || "Something went wrong while posting");
@@ -128,16 +166,17 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
     <View style={styles.screen}>
       <Header title="Post something" />
       <ScrollView style={styles.screen} contentContainerStyle={styles.form}>
-        <View style={styles.chipsRow}>
+        <View style={styles.typeRow}>
           {TYPE_CHIPS.map((chip) => {
             const active = type === chip.key;
             return (
               <Pressable
                 key={chip.key}
                 onPress={() => onTypeChange(chip.key)}
-                style={[styles.chip, active && styles.chipActive]}
+                style={[styles.typeCard, active && styles.typeCardActive]}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{chip.label}</Text>
+                <chip.Icon color={active ? colors.white : colors.ink} />
+                <Text style={[styles.typeCardText, active && styles.typeCardTextActive]}>{chip.label}</Text>
               </Pressable>
             );
           })}
@@ -174,7 +213,14 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
               <PhotoUploadIcon />
               <Text style={styles.dropzoneText}>Add a photo</Text>
             </Pressable>
-            {imageUri && <Image source={{ uri: imageUri }} style={styles.preview} />}
+            {imageUri && (
+              <View style={styles.previewWrapper}>
+                <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
+                <Pressable onPress={() => setImageUri(null)} style={styles.removePhotoBtn}>
+                  <ClearIcon />
+                </Pressable>
+              </View>
+            )}
           </>
         )}
 
@@ -214,15 +260,25 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
             <View style={styles.kindRow}>
               <Pressable
                 onPress={() => setKind("Lost")}
-                style={[styles.kindChip, kind === "Lost" && styles.chipActive]}
+                style={[
+                  styles.kindChip,
+                  kind === "Lost" && { backgroundColor: colors.serviceBadgeBg, borderColor: colors.serviceBadgeFg },
+                ]}
               >
-                <Text style={[styles.chipText, kind === "Lost" && styles.chipTextActive]}>I lost this</Text>
+                <Text style={[styles.kindChipText, kind === "Lost" && { color: colors.serviceBadgeFg }]}>
+                  I lost this
+                </Text>
               </Pressable>
               <Pressable
                 onPress={() => setKind("Found")}
-                style={[styles.kindChip, kind === "Found" && styles.chipActive]}
+                style={[
+                  styles.kindChip,
+                  kind === "Found" && { backgroundColor: colors.goodsBadgeBg, borderColor: colors.goodsBadgeFg },
+                ]}
               >
-                <Text style={[styles.chipText, kind === "Found" && styles.chipTextActive]}>I found this</Text>
+                <Text style={[styles.kindChipText, kind === "Found" && { color: colors.goodsBadgeFg }]}>
+                  I found this
+                </Text>
               </Pressable>
             </View>
             <TextInput
@@ -232,14 +288,29 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
               onChangeText={setLocation}
               style={styles.input}
             />
+            <Pressable onPress={pickImage} style={styles.dropzone}>
+              <PhotoUploadIcon />
+              <Text style={styles.dropzoneText}>
+                {kind === "Found" ? "Add a photo (required)" : "Add a photo (optional)"}
+              </Text>
+            </Pressable>
+            {imageUri && (
+              <View style={styles.previewWrapper}>
+                <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
+                <Pressable onPress={() => setImageUri(null)} style={styles.removePhotoBtn}>
+                  <ClearIcon />
+                </Pressable>
+              </View>
+            )}
           </>
         )}
 
         <ShadowBox
           onPress={handleSubmit}
-          bg={colors.orange}
+          disabled={!canSubmit}
+          bg={canSubmit ? colors.orange : colors.mutedText}
           radius={12}
-          shadowOffset={3}
+          shadowOffset={canSubmit ? 3 : 0}
           style={styles.submitWrapper}
           contentStyle={styles.submitContent}
         >
@@ -247,6 +318,13 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
         </ShadowBox>
       </ScrollView>
       <TabBar />
+      <InfoModal
+        visible={!!successInfo}
+        heading={successInfo?.heading ?? ""}
+        body={successInfo?.body ?? ""}
+        onClose={handleSuccessClose}
+        closeLabel="Nice!"
+      />
     </View>
   );
 };
@@ -254,20 +332,20 @@ const PostScreen: React.FC<PostProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.cream },
   form: { padding: 20, gap: 14 },
-  chipsRow: { flexDirection: "row", gap: 8 },
-  chip: {
+  typeRow: { flexDirection: "row", gap: 8 },
+  typeCard: {
     flex: 1,
     alignItems: "center",
+    gap: 6,
     borderWidth: 2.5,
     borderColor: colors.ink,
-    borderRadius: 11,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    borderRadius: 14,
+    paddingVertical: 12,
     backgroundColor: colors.white,
   },
-  chipActive: { backgroundColor: colors.ink },
-  chipText: { fontSize: 12.5, fontFamily: font.extrabold, color: colors.ink },
-  chipTextActive: { color: colors.yellow },
+  typeCardActive: { backgroundColor: colors.orange },
+  typeCardText: { fontSize: 11.5, fontFamily: font.extrabold, color: colors.ink, textAlign: "center" },
+  typeCardTextActive: { color: colors.white },
   input: {
     backgroundColor: colors.white,
     borderWidth: 2.5,
@@ -291,19 +369,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFDF4",
   },
   dropzoneText: { fontSize: 12.5, fontFamily: font.bold, color: colors.mutedText },
-  preview: { width: 100, height: 100, borderRadius: 8, marginTop: 4 },
+  previewWrapper: { width: 100, marginTop: 4 },
+  preview: { width: 100, height: 100, borderRadius: 8, backgroundColor: "#FFFDF4" },
+  removePhotoBtn: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   datePlaceholder: { fontSize: 15, fontFamily: font.medium, color: colors.placeholder },
   dateSetText: { fontSize: 15, fontFamily: font.medium, color: colors.ink },
   kindRow: { flexDirection: "row", gap: 8 },
   kindChip: {
     flex: 1,
     alignItems: "center",
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: colors.ink,
-    borderRadius: 11,
-    paddingVertical: 10,
+    borderRadius: 99,
+    paddingVertical: 9,
     backgroundColor: colors.white,
   },
+  kindChipText: { fontSize: 12.5, fontFamily: font.bold, color: colors.ink },
   submitWrapper: { marginTop: 4 },
   submitContent: { paddingVertical: 14, alignItems: "center", justifyContent: "center" },
   submitText: { fontSize: 16, fontFamily: font.extrabold, color: colors.white },

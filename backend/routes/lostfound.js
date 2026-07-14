@@ -3,16 +3,34 @@ const router = express.Router();
 const LostFound = require("../models/LostFound");
 const auth = require("../middleware/auth");
 const multer = require("multer");
+const path = require("path");
 
-const upload = multer();
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, "../uploads/"));
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
 
-router.post("/", auth, upload.none(), async (req, res) => {
+router.post("/", auth, upload.array("images", 1), async (req, res) => {
   try {
     const { title, description, kind, place, contactNumber } = req.body;
     if (!title) return res.status(400).json({ error: "Title is required" });
+    if (!description) return res.status(400).json({ error: "Description is required" });
+    if (!place) return res.status(400).json({ error: "Location is required" });
     if (!["Lost", "Found"].includes(kind)) {
       return res.status(400).json({ error: "kind must be 'Lost' or 'Found'" });
     }
+    if (kind === "Found" && (!req.files || req.files.length === 0)) {
+      return res.status(400).json({ error: "A photo is required when marking an item as found" });
+    }
+
+    const images = req.files?.map(
+      file => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+    ) || [];
 
     const item = new LostFound({
       title,
@@ -20,6 +38,7 @@ router.post("/", auth, upload.none(), async (req, res) => {
       kind,
       place,
       contactNumber,
+      images,
       postedBy: req.userId
     });
 

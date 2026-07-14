@@ -1,23 +1,17 @@
 import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, NavigatorScreenParams } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Signup from "./screens/Signup";
 import Login from "./screens/Login";
-import Home from "./screens/Home";
 import PostScreen from "./screens/PostScreen";
-import GoodsList from "./screens/GoodsList";
-import ServicesList from "./screens/ServicesList";
-import LostFoundList from "./screens/LostFoundList";
 import UpdatesScreen from "./screens/UpdatesScreen";
+import MainTabs, { MainTabParamList } from "./navigation/MainTabs";
 
 export type RootStackParamList = {
   Signup: undefined;
   Login: undefined;
-  Home: { name?: string };
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   Post: undefined;
-  Goods: { focusId?: string };
-  Services: { focusId?: string };
-  LostFound: { focusId?: string };
   Updates: undefined;
 };
 
@@ -28,11 +22,8 @@ const App = () => (
     <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="Signup" component={Signup} />
-      <Stack.Screen name="Home" component={Home} />
+      <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="Post" component={PostScreen} />
-      <Stack.Screen name="Goods" component={GoodsList} />
-      <Stack.Screen name="Services" component={ServicesList} />
-      <Stack.Screen name="LostFound" component={LostFoundList} />
       <Stack.Screen name="Updates" component={UpdatesScreen} />
     </Stack.Navigator>
   </NavigationContainer>

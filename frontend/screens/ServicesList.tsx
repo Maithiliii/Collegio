@@ -2,8 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CompositeScreenProps } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
+import { MainTabParamList } from "../navigation/MainTabs";
 import { REACT_APP_API_URL } from "@env";
 import Header from "../components/Header";
 import SearchBar from "../components/SearchBar";
@@ -26,7 +29,10 @@ type ServiceItem = {
   };
 };
 
-type Props = NativeStackScreenProps<RootStackParamList, "Services">;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, "Services">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export default function ServicesList({ route }: Props) {
   const { focusId } = route.params || {};
@@ -35,11 +41,13 @@ export default function ServicesList({ route }: Props) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [confirmItem, setConfirmItem] = useState<ServiceItem | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<ServiceItem>>(null);
 
   useEffect(() => {
     fetchServices();
+    AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
   }, []);
 
   const fetchServices = async () => {
@@ -98,47 +106,52 @@ export default function ServicesList({ route }: Props) {
         data={filteredServices}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.topRow}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>SERVICE</Text>
-              </View>
-              <Text style={styles.due}>
-                Due {item.deadline ? item.deadline.split("T")[0] : "TBD"}
-              </Text>
-            </View>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.desc}>{item.description}</Text>
-            <View style={styles.bottomRow}>
-              <View style={styles.posterRow}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {(item.requestedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
-                  </Text>
+        renderItem={({ item }) => {
+          const isOwnPost = !!currentUserEmail && item.requestedBy?.email === currentUserEmail;
+          return (
+            <View style={styles.card}>
+              <View style={styles.topRow}>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>SERVICE</Text>
                 </View>
-                <Text style={styles.posterText}>{item.requestedBy?.name ?? "Unknown"}</Text>
+                <Text style={styles.due}>
+                  Due {item.deadline ? item.deadline.split("T")[0] : "TBD"}
+                </Text>
               </View>
-              <Text style={styles.payment}>₹{item.payment ?? "N/A"}</Text>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.desc}>{item.description}</Text>
+              <View style={styles.bottomRow}>
+                <View style={styles.posterRow}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {(item.requestedBy?.name ?? "?").trim().charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.posterText}>{item.requestedBy?.name ?? "Unknown"}</Text>
+                </View>
+                <Text style={styles.payment}>₹{item.payment ?? "N/A"}</Text>
+              </View>
+              {!isOwnPost && (
+                <ShadowBox
+                  onPress={() => setConfirmItem(item)}
+                  bg={colors.yellow}
+                  radius={11}
+                  shadowOffset={2.5}
+                  style={styles.buttonWrapper}
+                  contentStyle={styles.buttonContent}
+                >
+                  <Text style={styles.buttonText}>I can help</Text>
+                </ShadowBox>
+              )}
             </View>
-            <ShadowBox
-              onPress={() => setConfirmItem(item)}
-              bg={colors.yellow}
-              radius={11}
-              shadowOffset={2.5}
-              style={styles.buttonWrapper}
-              contentStyle={styles.buttonContent}
-            >
-              <Text style={styles.buttonText}>I can help</Text>
-            </ShadowBox>
-          </View>
-        )}
+          );
+        }}
       />
       <TabBar />
       <ConfirmModal
         visible={!!confirmItem}
         heading="Offer to help?"
-        body={`"${confirmItem?.title}" — ${confirmItem?.requestedBy?.name ?? "they"} will be notified that you're up for it.`}
+        body={`You're offering to help with "${confirmItem?.title}". ${confirmItem?.requestedBy?.name ?? "They"} will be notified that you're up for it.`}
         onCancel={() => setConfirmItem(null)}
         onConfirm={handleInterested}
       />
