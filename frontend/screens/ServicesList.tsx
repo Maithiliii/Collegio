@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CompositeScreenProps } from "@react-navigation/native";
+import { CompositeScreenProps, useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
@@ -15,6 +15,7 @@ import ShadowBox from "../components/ui/ShadowBox";
 import ConfirmModal from "../components/ui/ConfirmModal";
 import Toast, { useToast } from "../components/ui/Toast";
 import { colors, font } from "../theme/tokens";
+import { getUserIdFromToken } from "../utils/auth";
 
 type ServiceItem = {
   _id: string;
@@ -27,6 +28,7 @@ type ServiceItem = {
     email?: string;
     contactNumber?: string;
   };
+  interestedUsers?: string[];
 };
 
 type Props = CompositeScreenProps<
@@ -42,13 +44,17 @@ export default function ServicesList({ route }: Props) {
   const [search, setSearch] = useState("");
   const [confirmItem, setConfirmItem] = useState<ServiceItem | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<ServiceItem>>(null);
 
-  useEffect(() => {
-    fetchServices();
-    AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchServices();
+      AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
+      AsyncStorage.getItem("token").then((t) => setCurrentUserId(t ? getUserIdFromToken(t) : null));
+    }, [])
+  );
 
   const fetchServices = async () => {
     try {
@@ -83,6 +89,15 @@ export default function ServicesList({ route }: Props) {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (currentUserId) {
+        setServices((prev) =>
+          prev.map((s) =>
+            s._id === item._id
+              ? { ...s, interestedUsers: [...(s.interestedUsers ?? []), currentUserId] }
+              : s
+          )
+        );
+      }
       showToast(`${item.requestedBy?.name ?? "They"} will be notified that you're up for it!`);
     } catch (err: any) {
       showToast(err.response?.data?.error || "Failed to show interest");
@@ -108,6 +123,7 @@ export default function ServicesList({ route }: Props) {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
           const isOwnPost = !!currentUserEmail && item.requestedBy?.email === currentUserEmail;
+          const hasResponded = !!currentUserId && !!item.interestedUsers?.includes(currentUserId);
           return (
             <View style={styles.card}>
               <View style={styles.topRow}>
@@ -134,13 +150,16 @@ export default function ServicesList({ route }: Props) {
               {!isOwnPost && (
                 <ShadowBox
                   onPress={() => setConfirmItem(item)}
-                  bg={colors.yellow}
+                  disabled={hasResponded}
+                  bg={hasResponded ? colors.imgStripeA : colors.yellow}
                   radius={11}
-                  shadowOffset={2.5}
+                  shadowOffset={hasResponded ? 0 : 2.5}
                   style={styles.buttonWrapper}
                   contentStyle={styles.buttonContent}
                 >
-                  <Text style={styles.buttonText}>I can help</Text>
+                  <Text style={styles.buttonText}>
+                    {hasResponded ? "You offered to help" : "I can help"}
+                  </Text>
                 </ShadowBox>
               )}
             </View>

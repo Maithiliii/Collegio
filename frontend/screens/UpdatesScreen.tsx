@@ -8,18 +8,24 @@ import { RootStackParamList } from "../App";
 import { REACT_APP_API_URL } from "@env";
 import Header from "../components/Header";
 import TabBar from "../components/TabBar";
+import ConfirmModal from "../components/ui/ConfirmModal";
+import Toast, { useToast } from "../components/ui/Toast";
+import { TrashIcon } from "../components/ui/Icon";
 import { colors, font } from "../theme/tokens";
 
 type Tab = "posts" | "interest" | "mine";
+type PostKind = "goods" | "service" | "lf";
 
 type UpdateItem = {
   key: string;
+  id: string;
+  kind: PostKind;
   title: string;
   badge: string;
   badgeBg: string;
   badgeFg: string;
   meta: string;
-  person?: { name: string; action: string };
+  person?: { name: string; action: string; email?: string; contactNumber?: string };
 };
 
 const badgeColors: Record<string, { bg: string; fg: string }> = {
@@ -31,10 +37,13 @@ const badgeColors: Record<string, { bg: string; fg: string }> = {
 
 const dateOf = (iso?: string) => (iso ? iso.split("T")[0] : "N/A");
 const initial = (name?: string) => (name ?? "?").trim().charAt(0).toUpperCase();
+const hasContact = (p: { email?: string; contactNumber?: string }) => !!(p.email || p.contactNumber);
 
 function goodsToItem(g: any): UpdateItem {
   return {
     key: `g-${g._id}`,
+    id: g._id,
+    kind: "goods",
     title: g.title,
     badge: "GOODS",
     badgeBg: badgeColors.GOODS.bg,
@@ -45,6 +54,8 @@ function goodsToItem(g: any): UpdateItem {
 function serviceToItem(s: any): UpdateItem {
   return {
     key: `s-${s._id}`,
+    id: s._id,
+    kind: "service",
     title: s.title,
     badge: "SERVICE",
     badgeBg: badgeColors.SERVICE.bg,
@@ -56,6 +67,8 @@ function lfToItem(l: any): UpdateItem {
   const badge = (l.kind ?? "LOST").toUpperCase();
   return {
     key: `l-${l._id}`,
+    id: l._id,
+    kind: "lf",
     title: l.title,
     badge,
     badgeBg: badgeColors[badge].bg,
@@ -77,7 +90,12 @@ function interestPairToItem(pair: { user: any; post: any }, kind: "goods" | "ser
       : "found your item";
   return {
     ...base,
-    person: { name: pair.user?.name ?? "Someone", action },
+    person: {
+      name: pair.user?.name ?? "Someone",
+      action,
+      email: pair.user?.email,
+      contactNumber: pair.user?.contactNumber,
+    },
   };
 }
 
@@ -87,6 +105,8 @@ const UpdatesScreen: React.FC = () => {
   const [myPosts, setMyPosts] = useState<UpdateItem[]>([]);
   const [myInterests, setMyInterests] = useState<UpdateItem[]>([]);
   const [interestsInMine, setInterestsInMine] = useState<UpdateItem[]>([]);
+  const [deleteItem, setDeleteItem] = useState<UpdateItem | null>(null);
+  const { toast, showToast } = useToast();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -135,6 +155,26 @@ const UpdatesScreen: React.FC = () => {
     fetchData();
   }, []);
 
+  const endpointFor = (kind: PostKind) =>
+    kind === "goods" ? "posts" : kind === "service" ? "requests" : "lostfound";
+
+  const handleDelete = async () => {
+    const item = deleteItem;
+    setDeleteItem(null);
+    if (!item) return;
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) return showToast("You must be logged in to delete a post");
+      await axios.delete(`${REACT_APP_API_URL}/${endpointFor(item.kind)}/${item.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMyPosts((prev) => prev.filter((p) => p.key !== item.key));
+      showToast("Post deleted");
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Failed to delete post");
+    }
+  };
+
   const lists: Record<Tab, UpdateItem[]> = {
     posts: myPosts,
     interest: myInterests,
@@ -175,9 +215,22 @@ const UpdatesScreen: React.FC = () => {
                 <View style={styles.personAvatar}>
                   <Text style={styles.personAvatarText}>{initial(item.person.name)}</Text>
                 </View>
-                <Text style={styles.personText}>
-                  <Text style={styles.personName}>{item.person.name}</Text> {item.person.action}
-                </Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.personText}>
+                    <Text style={styles.personName}>{item.person.name}</Text> {item.person.action}
+                  </Text>
+                  {hasContact(item.person) && (
+                    <View style={styles.contactBlock}>
+                      <Text style={styles.contactLabel}>Contact them at</Text>
+                      {item.person.email && (
+                        <Text style={styles.contactText}>Email: {item.person.email}</Text>
+                      )}
+                      {item.person.contactNumber && (
+                        <Text style={styles.contactText}>Phone: {item.person.contactNumber}</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
               </View>
             )}
             <View style={styles.cardTopRow}>
@@ -187,6 +240,11 @@ const UpdatesScreen: React.FC = () => {
               </View>
             </View>
             <Text style={styles.cardMeta}>{item.meta}</Text>
+            {activeTab === "posts" && (
+              <Pressable onPress={() => setDeleteItem(item)} style={styles.deleteBtn} hitSlop={8}>
+                <TrashIcon size={16} />
+              </Pressable>
+            )}
           </View>
         ))}
         {activeList.length === 0 && (
@@ -196,6 +254,17 @@ const UpdatesScreen: React.FC = () => {
         )}
       </ScrollView>
       <TabBar />
+      <ConfirmModal
+        visible={!!deleteItem}
+        heading="Delete this post?"
+        body={`This will delete "${deleteItem?.title}" for everyone and can't be undone.${
+          deleteItem?.kind === "service" ? " Service posts also delete automatically once their deadline passes." : ""
+        }`}
+        confirmLabel="Delete"
+        onCancel={() => setDeleteItem(null)}
+        onConfirm={handleDelete}
+      />
+      <Toast message={toast} />
     </View>
   );
 };
@@ -226,7 +295,7 @@ const styles = StyleSheet.create({
   },
   personRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
     paddingBottom: 7,
     marginBottom: 2,
@@ -247,11 +316,15 @@ const styles = StyleSheet.create({
   personAvatarText: { fontSize: 11, fontFamily: font.extrabold, color: colors.white },
   personText: { fontSize: 12.5, lineHeight: 17, color: colors.bodySecondary, fontFamily: font.regular, flexShrink: 1 },
   personName: { fontFamily: font.extrabold, color: colors.ink },
+  contactBlock: { marginTop: 3, gap: 1 },
+  contactLabel: { fontSize: 11.5, lineHeight: 15, color: colors.bodySecondary, fontFamily: font.regular },
+  contactText: { fontSize: 11.5, lineHeight: 15, color: colors.link, fontFamily: font.semibold },
   cardTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   cardTitle: { fontSize: 14.5, fontFamily: font.bold, color: colors.ink, flexShrink: 1 },
   badge: { borderWidth: 2, borderColor: colors.ink, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 8 },
   badgeText: { fontSize: 10, fontFamily: font.extrabold, letterSpacing: 0.5 },
   cardMeta: { fontSize: 12.5, fontFamily: font.semibold, color: colors.bodySecondary },
+  deleteBtn: { alignSelf: "flex-end", marginTop: 2, padding: 4 },
   emptyText: { textAlign: "center", padding: 36, color: colors.mutedText, fontFamily: font.semibold, fontSize: 13.5 },
 });
 

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, Image, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CompositeScreenProps } from "@react-navigation/native";
+import { CompositeScreenProps, useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
@@ -16,6 +16,7 @@ import ConfirmModal from "../components/ui/ConfirmModal";
 import Toast, { useToast } from "../components/ui/Toast";
 import { colors, font } from "../theme/tokens";
 import { timeAgo } from "../utils/timeAgo";
+import { getUserIdFromToken } from "../utils/auth";
 
 type GoodItem = {
   _id: string;
@@ -29,6 +30,7 @@ type GoodItem = {
     contactNumber?: string;
   };
   createdAt?: string;
+  interestedUsers?: string[];
 };
 
 type Props = CompositeScreenProps<
@@ -44,13 +46,17 @@ export default function GoodsList({ route }: Props) {
   const [search, setSearch] = useState("");
   const [confirmItem, setConfirmItem] = useState<GoodItem | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<GoodItem>>(null);
 
-  useEffect(() => {
-    fetchGoods();
-    AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchGoods();
+      AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
+      AsyncStorage.getItem("token").then((t) => setCurrentUserId(t ? getUserIdFromToken(t) : null));
+    }, [])
+  );
 
   const fetchGoods = async () => {
     try {
@@ -85,6 +91,15 @@ export default function GoodsList({ route }: Props) {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (currentUserId) {
+        setGoods((prev) =>
+          prev.map((g) =>
+            g._id === item._id
+              ? { ...g, interestedUsers: [...(g.interestedUsers ?? []), currentUserId] }
+              : g
+          )
+        );
+      }
       showToast(`${item.postedBy?.name ?? "The seller"} has been notified!`);
     } catch (err: any) {
       showToast(err.response?.data?.error || "Failed to show interest");
@@ -110,6 +125,7 @@ export default function GoodsList({ route }: Props) {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
           const isOwnPost = !!currentUserEmail && item.postedBy?.email === currentUserEmail;
+          const hasResponded = !!currentUserId && !!item.interestedUsers?.includes(currentUserId);
           return (
             <View style={styles.card}>
               {item.images?.length ? (
@@ -136,13 +152,16 @@ export default function GoodsList({ route }: Props) {
                 {!isOwnPost && (
                   <ShadowBox
                     onPress={() => setConfirmItem(item)}
-                    bg={colors.yellow}
+                    disabled={hasResponded}
+                    bg={hasResponded ? colors.imgStripeA : colors.yellow}
                     radius={11}
-                    shadowOffset={2.5}
+                    shadowOffset={hasResponded ? 0 : 2.5}
                     style={styles.buttonWrapper}
                     contentStyle={styles.buttonContent}
                   >
-                    <Text style={styles.buttonText}>I'm interested</Text>
+                    <Text style={styles.buttonText}>
+                      {hasResponded ? "You're interested" : "I'm interested"}
+                    </Text>
                   </ShadowBox>
                 )}
               </View>

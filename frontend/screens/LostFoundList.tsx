@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Text, FlatList, ActivityIndicator, Pressable, Image, StyleSheet } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CompositeScreenProps } from "@react-navigation/native";
+import { CompositeScreenProps, useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
@@ -16,6 +16,7 @@ import Toast, { useToast } from "../components/ui/Toast";
 import { MapPinIcon } from "../components/ui/Icon";
 import { colors, font } from "../theme/tokens";
 import { timeAgo } from "../utils/timeAgo";
+import { getUserIdFromToken } from "../utils/auth";
 
 type LostFoundItem = {
   _id: string;
@@ -29,6 +30,7 @@ type LostFoundItem = {
     email?: string;
     contactNumber?: string;
   };
+  interestedUsers?: string[];
 };
 
 type Props = CompositeScreenProps<
@@ -46,13 +48,17 @@ export default function LostFoundList({ route }: Props) {
   const [filter, setFilter] = useState<"All" | "Lost" | "Found">("All");
   const [confirmItem, setConfirmItem] = useState<LostFoundItem | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const flatListRef = useRef<FlatList<LostFoundItem>>(null);
 
-  useEffect(() => {
-    fetchItems();
-    AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchItems();
+      AsyncStorage.getItem("userEmail").then(setCurrentUserEmail);
+      AsyncStorage.getItem("token").then((t) => setCurrentUserId(t ? getUserIdFromToken(t) : null));
+    }, [])
+  );
 
   const fetchItems = async () => {
     try {
@@ -87,6 +93,15 @@ export default function LostFoundList({ route }: Props) {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (currentUserId) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i._id === item._id
+              ? { ...i, interestedUsers: [...(i.interestedUsers ?? []), currentUserId] }
+              : i
+          )
+        );
+      }
       showToast(`Message sent to ${item.postedBy?.name ?? "them"}!`);
     } catch (err: any) {
       showToast(err.response?.data?.error || "Failed to send message");
@@ -124,6 +139,7 @@ export default function LostFoundList({ route }: Props) {
         renderItem={({ item }) => {
           const isFound = item.kind === "Found";
           const isOwnPost = !!currentUserEmail && item.postedBy?.email === currentUserEmail;
+          const hasResponded = !!currentUserId && !!item.interestedUsers?.includes(currentUserId);
           return (
             <View style={styles.card}>
               {item.images?.length ? (
@@ -156,14 +172,15 @@ export default function LostFoundList({ route }: Props) {
                 {!isOwnPost && (
                   <ShadowBox
                     onPress={() => setConfirmItem(item)}
-                    bg={colors.orange}
+                    disabled={hasResponded}
+                    bg={hasResponded ? colors.imgStripeB : colors.orange}
                     radius={11}
-                    shadowOffset={2.5}
+                    shadowOffset={hasResponded ? 0 : 2.5}
                     style={styles.buttonWrapper}
                     contentStyle={styles.buttonContent}
                   >
-                    <Text style={styles.buttonText}>
-                      {isFound ? "This is mine, message" : "I found it, message"}
+                    <Text style={[styles.buttonText, hasResponded && styles.buttonTextMuted]}>
+                      {hasResponded ? "Message sent" : isFound ? "This is mine, message" : "I found it, message"}
                     </Text>
                   </ShadowBox>
                 )}
@@ -247,4 +264,5 @@ const styles = StyleSheet.create({
   buttonWrapper: { marginTop: 6 },
   buttonContent: { paddingVertical: 11, alignItems: "center", justifyContent: "center" },
   buttonText: { fontSize: 14, fontFamily: font.extrabold, color: colors.white },
+  buttonTextMuted: { color: colors.mutedText },
 });

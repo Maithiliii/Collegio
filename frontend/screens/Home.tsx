@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Image } from "react-native";
-import { CompositeScreenProps } from "@react-navigation/native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { CompositeScreenProps, useFocusEffect } from "@react-navigation/native";
+import { NativeStackScreenProps, NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { RootStackParamList } from "../App";
 import { MainTabParamList } from "../navigation/MainTabs";
@@ -12,7 +12,8 @@ import { REACT_APP_API_URL } from "@env";
 import SearchBar from "../components/SearchBar";
 import TabBar from "../components/TabBar";
 import ShadowBox from "../components/ui/ShadowBox";
-import { BellIcon, ChevronRightIcon } from "../components/ui/Icon";
+import ConfirmModal from "../components/ui/ConfirmModal";
+import { BellIcon, ChevronRightIcon, LogoutIcon } from "../components/ui/Icon";
 import { colors, font } from "../theme/tokens";
 
 type HomeProps = CompositeScreenProps<
@@ -63,6 +64,16 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
   const [notifCount, setNotifCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
+  const handleLogout = async () => {
+    setLogoutModalVisible(false);
+    await AsyncStorage.multiRemove(["token", "userName", "userEmail", "phone"]);
+    navigation.getParent<NativeStackNavigationProp<RootStackParamList>>()?.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
+  };
 
   useEffect(() => {
     if (route.params?.name) return;
@@ -71,44 +82,48 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
     });
   }, [route.params?.name]);
 
-  useEffect(() => {
-    const fetchFeed = async () => {
-      try {
-        const [goodsRes, servicesRes, lfRes] = await Promise.all([
-          axios.get(`${REACT_APP_API_URL}/posts`),
-          axios.get(`${REACT_APP_API_URL}/requests`),
-          axios.get(`${REACT_APP_API_URL}/lostfound`),
-        ]);
-        setGoods(goodsRes.data);
-        setServices(servicesRes.data);
-        setLostfound(lfRes.data);
-      } catch (err) {
-        console.error("Failed to fetch feed:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchFeed();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchFeed = async () => {
+        try {
+          const [goodsRes, servicesRes, lfRes] = await Promise.all([
+            axios.get(`${REACT_APP_API_URL}/posts`),
+            axios.get(`${REACT_APP_API_URL}/requests`),
+            axios.get(`${REACT_APP_API_URL}/lostfound`),
+          ]);
+          setGoods(goodsRes.data);
+          setServices(servicesRes.data);
+          setLostfound(lfRes.data);
+        } catch (err) {
+          console.error("Failed to fetch feed:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchFeed();
+    }, [])
+  );
 
-  useEffect(() => {
-    const fetchNotifCount = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) return;
-        const headers = { Authorization: `Bearer ${token}` };
-        const [g, s, l] = await Promise.all([
-          axios.get(`${REACT_APP_API_URL}/posts/interests-in-my-posts`, { headers }),
-          axios.get(`${REACT_APP_API_URL}/requests/interests-in-my-posts`, { headers }),
-          axios.get(`${REACT_APP_API_URL}/lostfound/interests-in-my-posts`, { headers }),
-        ]);
-        setNotifCount(g.data.length + s.data.length + l.data.length);
-      } catch (err) {
-        // not logged in yet, or server unreachable — badge just stays 0
-      }
-    };
-    fetchNotifCount();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchNotifCount = async () => {
+        try {
+          const token = await AsyncStorage.getItem("token");
+          if (!token) return;
+          const headers = { Authorization: `Bearer ${token}` };
+          const [g, s, l] = await Promise.all([
+            axios.get(`${REACT_APP_API_URL}/posts/interests-in-my-posts`, { headers }),
+            axios.get(`${REACT_APP_API_URL}/requests/interests-in-my-posts`, { headers }),
+            axios.get(`${REACT_APP_API_URL}/lostfound/interests-in-my-posts`, { headers }),
+          ]);
+          setNotifCount(g.data.length + s.data.length + l.data.length);
+        } catch (err) {
+          // not logged in yet, or server unreachable — badge just stays 0
+        }
+      };
+      fetchNotifCount();
+    }, [])
+  );
 
   const q = search.trim().toLowerCase();
   const hit = (t?: string) => (t ?? "").toLowerCase().includes(q);
@@ -158,6 +173,7 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
           key: `g-${g._id}`,
           title: g.title,
           priceLabel: `₹${g.price ?? 0}`,
+          deadlineLabel: undefined as string | undefined,
           image: g.images?.[0],
           onPress: () => navigation.navigate("Goods", {}),
         })),
@@ -165,6 +181,7 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
           key: `s-${s._id}`,
           title: s.title,
           priceLabel: `₹${s.payment ?? 0}`,
+          deadlineLabel: `Due ${s.deadline ? s.deadline.split("T")[0] : "TBD"}`,
           image: undefined as string | undefined,
           onPress: () => navigation.navigate("Services", {}),
         })),
@@ -187,20 +204,31 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <View style={styles.headerTop}>
             <Text style={styles.greeting}>Hi, {userName || "there"}</Text>
-            <ShadowBox
-              onPress={() => navigation.navigate("Updates")}
-              bg={colors.white}
-              radius={21}
-              shadowOffset={2.5}
-              contentStyle={styles.bellContent}
-            >
-              <BellIcon />
-              {notifCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{notifCount}</Text>
-                </View>
-              )}
-            </ShadowBox>
+            <View style={styles.headerActions}>
+              <ShadowBox
+                onPress={() => setLogoutModalVisible(true)}
+                bg={colors.white}
+                radius={21}
+                shadowOffset={2.5}
+                contentStyle={styles.bellContent}
+              >
+                <LogoutIcon />
+              </ShadowBox>
+              <ShadowBox
+                onPress={() => navigation.navigate("Updates")}
+                bg={colors.white}
+                radius={21}
+                shadowOffset={2.5}
+                contentStyle={styles.bellContent}
+              >
+                <BellIcon />
+                {notifCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{notifCount}</Text>
+                  </View>
+                )}
+              </ShadowBox>
+            </View>
           </View>
           <SearchBar value={search} onChangeText={setSearch} placeholder="Search the campus market…" />
         </View>
@@ -280,19 +308,19 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
             {fresh.length > 0 && (
               <View style={{ gap: 10 }}>
                 <Text style={styles.sectionLabelUpper}>Fresh on campus</Text>
-                <View style={styles.freshGrid}>
+                <View style={styles.freshList}>
                   {fresh.map((item) => (
                     <Pressable key={item.key} onPress={item.onPress} style={styles.freshCard}>
-                      {item.image ? (
-                        <Image source={{ uri: item.image }} style={styles.freshImage} resizeMode="contain" />
-                      ) : (
-                        <View style={styles.freshImage} />
+                      {item.image && (
+                        <Image source={{ uri: item.image }} style={styles.freshImage} resizeMode="cover" />
                       )}
-                      <View style={{ padding: 9 }}>
+                      <View style={styles.freshBody}>
                         <Text style={styles.freshTitle} numberOfLines={1}>
                           {item.title}
                         </Text>
                         <Text style={styles.freshPrice}>{item.priceLabel}</Text>
+                        {item.deadlineLabel && <Text style={styles.freshDeadline}>{item.deadlineLabel}</Text>}
+                        <Text style={styles.freshViewDetails}>View details</Text>
                       </View>
                     </Pressable>
                   ))}
@@ -303,6 +331,14 @@ const Home: React.FC<HomeProps> = ({ navigation, route }) => {
         )}
       </ScrollView>
       <TabBar />
+      <ConfirmModal
+        visible={logoutModalVisible}
+        heading="Log out?"
+        body="You'll need to log in again to keep using Collegio."
+        confirmLabel="Log out"
+        onCancel={() => setLogoutModalVisible(false)}
+        onConfirm={handleLogout}
+      />
     </View>
   );
 };
@@ -319,6 +355,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   headerTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   greeting: { fontSize: 26, fontFamily: font.extrabold, color: colors.ink, lineHeight: 30 },
   bellContent: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
   badge: {
@@ -372,18 +409,27 @@ const styles = StyleSheet.create({
   },
   lfTitle: { fontSize: 15, fontFamily: font.extrabold, color: colors.ink },
   lfSub: { fontSize: 11.5, fontFamily: font.medium, color: "rgba(42,33,24,.65)" },
-  freshGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  freshList: { gap: 10 },
   freshCard: {
-    width: "47%",
+    flexDirection: "row",
     backgroundColor: colors.white,
     borderWidth: 2.5,
     borderColor: colors.ink,
     borderRadius: 14,
     overflow: "hidden",
   },
-  freshImage: { height: 64, backgroundColor: colors.imgStripeA, borderBottomWidth: 2.5, borderBottomColor: colors.ink },
-  freshTitle: { fontSize: 13, fontFamily: font.bold, color: colors.ink },
-  freshPrice: { fontSize: 13, fontFamily: font.extrabold, color: colors.priceEmphasis },
+  freshImage: {
+    width: 76,
+    alignSelf: "stretch",
+    backgroundColor: colors.imgStripeA,
+    borderRightWidth: 2.5,
+    borderRightColor: colors.ink,
+  },
+  freshBody: { flex: 1, padding: 10, justifyContent: "center", gap: 3 },
+  freshTitle: { fontSize: 14, fontFamily: font.bold, color: colors.ink },
+  freshPrice: { fontSize: 14, fontFamily: font.extrabold, color: colors.priceEmphasis },
+  freshDeadline: { fontSize: 11, fontFamily: font.semibold, color: colors.deadlineText },
+  freshViewDetails: { fontSize: 12, fontFamily: font.bold, color: colors.link, marginTop: 1 },
 });
 
 export default Home;

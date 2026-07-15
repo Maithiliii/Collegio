@@ -6,6 +6,13 @@ const multer = require("multer");
 
 const upload = multer();
 
+router.use((req, res, next) => {
+  Request.deleteMany({ deadline: { $lt: new Date() } }).catch((err) => {
+    console.error("Failed to clean up expired requests:", err);
+  });
+  next();
+});
+
 router.post("/", auth, upload.none(), async (req, res) => {
   try {
     const { title, description, contactNumber, deadline, payment } = req.body;
@@ -46,6 +53,20 @@ router.post("/:requestId/interest", auth, async (req, res) => {
       await request.save();
     }
     res.json({ message: "Interest shown successfully", request });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/:requestId", auth, async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.requestId);
+    if (!request) return res.status(404).json({ error: "Request not found" });
+    if (request.requestedBy.toString() !== req.userId) {
+      return res.status(403).json({ error: "You can only delete your own posts" });
+    }
+    await request.deleteOne();
+    res.json({ message: "Request deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

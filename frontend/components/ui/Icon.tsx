@@ -2,7 +2,7 @@ import React from "react";
 import { Image } from "react-native";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { colors } from "../../theme/tokens";
-import ServicesIconSource from "../../assets/icons8-services-50.png";
+import ServicesIconSource from "../../assets/Services.png";
 
 type IconProps = {
   size?: number;
@@ -27,6 +27,32 @@ export const BellIcon: React.FC<IconProps> = ({ size = 19, color = colors.ink, s
 export const ClearIcon: React.FC<IconProps> = ({ size = 11, color = colors.yellow, strokeWidth = 3 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+  </Svg>
+);
+
+export const TrashIcon: React.FC<IconProps> = ({ size = 16, color = colors.deadlineText, strokeWidth = 2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M4 7h16M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M10 11v6M14 11v6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+  </Svg>
+);
+
+export const LogoutIcon: React.FC<IconProps> = ({ size = 18, color = colors.ink, strokeWidth = 2.2 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path d="M16 17l5-5-5-5M21 12H9" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 

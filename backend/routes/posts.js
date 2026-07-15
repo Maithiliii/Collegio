@@ -68,6 +68,20 @@ router.post("/:postId/interest", auth, async (req, res) => {
   }
 });
 
+router.delete("/:postId", auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ error: "Post not found" });
+    if (post.postedBy.toString() !== req.userId) {
+      return res.status(403).json({ error: "You can only delete your own posts" });
+    }
+    await post.deleteOne();
+    res.json({ message: "Post deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/my-posts", auth, async (req, res) => {
   try {
     const myPosts = await Post.find({ postedBy: req.userId });
