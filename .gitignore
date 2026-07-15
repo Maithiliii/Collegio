@@ -66,6 +66,11 @@ frontend/android/local.properties
 *.apk
 *.aar
 
+# Release signing (never commit these)
+frontend/android/keystore.properties
+frontend/android/app/*.keystore
+!frontend/android/app/debug.keystore
+
 # Android Studio
 *.iml
 .gradle
